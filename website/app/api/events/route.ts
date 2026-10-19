@@ -17,7 +17,7 @@ type VexEvent = {
   ongoing: boolean;
   program: { id: number; code: string };
   season: { id:number; name: string };
-  location: { city: string | null; region: string | null; country: string | null } | null;
+  location: { city: string | null; region: string | null; country: string | null; coordinates?: { lat?: number; lon?: number } | null } | null;
 };
 
 
@@ -49,6 +49,8 @@ export async function GET(request:Request) {
     const teamCount=teamCounts.get(event.id)??0;const provisional=tierFor(teamCount);const locked=lockedRanks.get(event.id);const lockDate=new Date(startDate.getTime()-7*86400000);
     return {
       id: String(event.id), sku: event.sku, date: event.start.slice(0,10), end: endDate.toLocaleString('en-US',{month:'short',day:'2-digit'}).toUpperCase(),
+      // For "Today" / "Near today" and "Near me" on the events page.
+      endDate: String(event.end ?? event.start).slice(0,10), lat: Number.isFinite(event.location?.coordinates?.lat) ? event.location?.coordinates?.lat : null, lon: Number.isFinite(event.location?.coordinates?.lon) ? event.location?.coordinates?.lon : null,
       tier: details.levelClass === 'World Championship' ? 'Worlds' : details.levelClass === 'Signature Event' ? (locked?.tier??provisional.tier) : 'Official',
       name: event.name, city, region: event.location?.country || 'Unassigned', class: details.levelClass, format: details.format, grade: details.grade,
       teams: details.levelClass==='Signature Event'?(locked?.count??teamCount):0, status: /\bcancell?ed\b/i.test(event.name) ? 'Cancelled' : event.ongoing ? 'In progress' : endDate < now ? 'Completed' : 'Upcoming', weight: 1, eventRegion: event.location?.region || event.location?.country || 'Unassigned',

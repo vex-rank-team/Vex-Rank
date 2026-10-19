@@ -6,7 +6,7 @@
  * /Vex-Rank/teams/31260X would 404. A hash survives any static host.
  *
  * Routes: #/  #/events  #/events/:id  #/events/:id/teams/:number  #/rankings
- *         #/stats  #/teams  #/teams/:number
+ *         #/stats  #/teams  #/teams/:number  #/skills  #/jumper
  */
 
 /** Build the address-bar hash for the current view and selection. */
@@ -46,5 +46,6 @@ export function hashToRoute(hash) {
   if (head === 'events') return param ? { view: 'event', eventId: param } : { view: 'events' };
   if (head === 'teams') return param ? { view: 'team', teamNumber: param } : { view: 'teams' };
   if (head === 'rankings' || head === 'stats') return { view: 'rankings' };
+  if (head === 'skills' || head === 'jumper') return { view: head };
   return null;
 }

@@ -49,3 +49,10 @@ test('a team at an event missing either half falls back to what it has', () => {
   assert.equal(routeToHash('teamEvent', { number: '31260X' }, {}), '#/events');
   assert.deepEqual(hashToRoute('#/events/64604/teams'), { view: 'event', eventId: '64604' });
 });
+
+test('the scouting pages have their own addresses', () => {
+  for (const view of ['skills', 'jumper']) {
+    assert.equal(routeToHash(view, null, null), `#/${view}`);
+    assert.deepEqual(hashToRoute(`#/${view}`), { view });
+  }
+});
