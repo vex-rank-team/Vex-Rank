@@ -282,3 +282,41 @@ test('a team season becomes one point per event, oldest first, with running win 
   assert.equal(seasonSeries(history, 999).length, 0);
   assert.equal(seasonTotals([]).winRate, null);
 });
+
+import { parseSignIn, mergeScout, sameScout } from '../lib/scout/account.mjs';
+
+test('the sign-in link is read safely', () => {
+  const code = 'a'.repeat(32);
+  assert.deepEqual(parseSignIn(`#/signed-in/${code}?return=%23%2Fteams%2F1698Z`), { code, returnTo: '#/teams/1698Z' });
+  assert.deepEqual(parseSignIn(`#/signed-in/${code}`), { code, returnTo: '#/' });
+  assert.deepEqual(parseSignIn(`#/signed-in/${code}?return=https%3A%2F%2Fevil.example`), { code, returnTo: '#/' });
+  assert.equal(parseSignIn('#/teams/1698Z'), null);
+  assert.equal(parseSignIn('#/signed-in/short'), null);
+});
+
+test('signing in merges this browser with the account, losing neither', () => {
+  const local = {
+    favorites: { teams: [{ number: '1A', name: 'Local' }, { number: '2B', name: 'Both' }], events: [{ id: '1', name: 'E1' }] },
+    notes: { '64244': { 'match:1': { text: 'local newer', updatedAt: 20 }, 'match:2': { text: 'local older', updatedAt: 5 } } },
+    picklists: { '64244': [{ number: '1A' }], '999': [{ number: '9Z' }] },
+    myTeam: '55288A',
+  };
+  const remote = {
+    favorites: { teams: [{ number: '2B', name: 'Remote' }, { number: '3C' }], events: [] },
+    notes: { '64244': { 'match:1': { text: 'remote older', updatedAt: 10 }, 'match:2': { text: 'remote newer', updatedAt: 9 } } },
+    picklists: { '64244': [{ number: '471B' }] },
+    myTeam: '',
+  };
+  const merged = mergeScout(local, remote);
+  assert.deepEqual(merged.favorites.teams.map(t => t.number).sort(), ['1A', '2B', '3C']);
+  assert.equal(merged.favorites.teams.find(t => t.number === '2B').name, 'Remote');
+  assert.equal(merged.favorites.events.length, 1);
+  assert.equal(merged.notes['64244']['match:1'].text, 'local newer');
+  assert.equal(merged.notes['64244']['match:2'].text, 'remote newer');
+  assert.deepEqual(merged.picklists['64244'].map(e => e.number), ['471B'], 'the account picklist wins');
+  assert.deepEqual(merged.picklists['999'].map(e => e.number), ['9Z'], 'a local-only picklist is kept');
+  assert.equal(merged.myTeam, '55288A', 'an empty account choice keeps the local team');
+  assert.ok(sameScout(merged, JSON.parse(JSON.stringify(merged))));
+  assert.ok(!sameScout(merged, local));
+  assert.deepEqual(mergeScout(local, null).favorites.teams.length, 2, 'a new account takes everything local');
+});

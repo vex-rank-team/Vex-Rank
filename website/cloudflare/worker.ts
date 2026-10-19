@@ -5,8 +5,9 @@ import { GET as rankings } from '../app/api/rankings/route';
 import { GET as skills } from '../app/api/skills/route';
 import { VCR_VERSION } from '../lib/vcr3.mjs';
 import { archiveSource } from './archive-source';
+import { handleAccount, type AccountEnv } from './account';
 
-interface Env { DB: D1Database; ROBOT_EVENTS_API_TOKEN: string; ARCHIVES: Fetcher }
+interface Env extends AccountEnv { DB: D1Database; ROBOT_EVENTS_API_TOKEN: string; ARCHIVES: Fetcher }
 
 // Allowlist routes and query fields before constructing a stable shared-cache key.
 // Unknown query fields are dropped. Add new data-affecting parameters here as well
@@ -42,7 +43,10 @@ async function dispatch(url: URL) {
 function cors(response: Response) {
   const result = new Response(response.body, response);
   result.headers.set('Access-Control-Allow-Origin', 'https://vex-rank.com');
-  result.headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  // Account routes (cloudflare/account.ts) write, and authenticate with a Bearer token.
+  result.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  result.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  result.headers.set('Access-Control-Max-Age', '600');
   result.headers.set('X-Content-Type-Options', 'nosniff');
   return result;
 }
@@ -50,6 +54,9 @@ function cors(response: Response) {
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     if (request.method === 'OPTIONS') return cors(new Response(null, { status: 204 }));
+    // Sign-in, synced scouting data, scouting groups and votes. Never cached.
+    const account = await handleAccount(request, env);
+    if (account) return cors(account);
     if (request.method !== 'GET') return cors(Response.json({ error: 'Method not allowed' }, { status: 405, headers: { Allow: 'GET, OPTIONS' } }));
     const archiveSeasons:Record<string,string>={'197':'2025-26','190':'2024-25','181':'2023-24','173':'2022-23'};
     const incoming=new URL(request.url),archiveSeason=incoming.searchParams.get('season');

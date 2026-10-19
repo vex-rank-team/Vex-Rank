@@ -49,3 +49,24 @@ For local testing, set `VEX_API_BASE=http://localhost:5173` and run Vite with th
 - Worlds event 64026: 585 teams; all 8 divisions returned, including Middle School overall finals, with elimination matches in each division.
 
 Counts and timings are observations from the test run, not permanent guarantees. Free Worker CPU/subrequest quotas and upstream availability can still limit cold requests for larger data sets; retain the cache and monitor errors before broader release. This remains a test deployment.
+
+## Accounts (Discord sign-in)
+
+Sign-in, synced scouting data, scouting groups and votes run in the same Worker (`cloudflare/account.ts`) and D1 database. One-time setup:
+
+1. **Discord application.** At <https://discord.com/developers/applications>, create an application named **VEX-Rank** (its name and icon are what readers see on Discord's "authorize" screen). Under **OAuth2**:
+   - add the redirect `https://vexrank-api-test.vexrank-eason.workers.dev/api/auth/discord/callback`;
+   - copy the **Client ID** into `vars.DISCORD_CLIENT_ID` in `cloudflare/wrangler.json`;
+   - reset and copy the **Client Secret**, and store it as a Worker secret:
+     ```sh
+     node node_modules/wrangler/bin/wrangler.js secret put DISCORD_CLIENT_SECRET --config cloudflare/wrangler.json
+     ```
+2. **Tables.** Re-run the schema; it only adds the new tables:
+   ```sh
+   node node_modules/wrangler/bin/wrangler.js d1 execute vexrank-test --remote --config cloudflare/wrangler.json --file cloudflare/schema.sql
+   ```
+3. **Deploy** the Worker as above, then the website.
+
+Until the client ID and secret are set, `/api/auth/discord` answers 503 and the site keeps working signed out. `SITE_ORIGIN` (in `vars`) is where readers are sent back after signing in.
+
+Sign-in uses Discord's `identify` scope only (id, display name, avatar). Session tokens are random, sent as `Authorization: Bearer`, and stored only as SHA-256 hashes; they last 30 days. `DELETE /api/me` removes a reader's account, synced data, votes and group memberships. See `public/privacy.html`.

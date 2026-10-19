@@ -8,6 +8,7 @@ import { ImageDown } from 'lucide-react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useScout } from './ScoutProvider';
 import { TeamTools } from './Widgets';
+import { VoteButtons } from './AccountMenu';
 import { seasonSeries, seasonTotals } from '@/lib/scout/team-season.mjs';
 
 const tile = 'border border-white/10 bg-[var(--c-surface)] p-4';
@@ -90,7 +91,7 @@ export default function TeamScout({ history, seasonId, seasonName, number, name,
   return <section aria-labelledby="season-at-a-glance" className="mt-6">
     <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
       <h2 id="season-at-a-glance" className="font-display text-2xl">Season at a glance <span className="text-base text-white/45">{seasonName}</span></h2>
-      <div className="flex items-center gap-2"><TeamTools number={number} name={name} />
+      <div className="flex items-center gap-2"><VoteButtons target={`team:${number.toUpperCase()}`} /><TeamTools number={number} name={name} />
         <button onClick={save} className="inline-flex items-center gap-1.5 border border-white/15 px-3 py-1.5 text-xs text-white/65 hover:border-white/35 hover:text-white"><ImageDown className="h-3.5 w-3.5" aria-hidden="true" />Download team card</button></div>
     </div>
     <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">{tiles.map(([label, value, detail]) => <div key={label} className={tile}>

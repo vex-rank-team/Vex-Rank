@@ -9,7 +9,59 @@ import { ArrowDown, ArrowUp, ChevronRight, NotebookPen, Plus, Trash2 } from 'luc
 import { useScout, type PickEntry } from './ScoutProvider';
 import { CalendarButton, CsvButton, FavoriteButton, TeamTools } from './Widgets';
 import { EVENT_RANKING_COLUMNS, eventRankingRows, sortRows } from '@/lib/scout/tables.mjs';
-import { addToPicklist, movePick, noteFor, picklistOf, removeFromPicklist, setNote, TIERS, updatePick } from '@/lib/scout/store.mjs';
+import { addToPicklist, emptyScout, movePick, noteFor, picklistOf, removeFromPicklist, setNote, TIERS, updatePick } from '@/lib/scout/store.mjs';
+import { ApiError, useAccount, useSharedEvent } from './AccountProvider';
+import { VoteButtons } from './AccountMenu';
+import { Users } from 'lucide-react';
+
+type Change = (state: any) => any;
+
+/** The event's picklist: the reader's own, or their active group's (shared, versioned). */
+function usePicklist(eventId: string) {
+  const { state, update } = useScout();
+  const { api, shared, setNotice } = useAccount();
+  const share = useSharedEvent(eventId);
+  if (!share) return { list: picklistOf(state, eventId) as PickEntry[], apply: (change: Change) => update(change), share: null };
+  const list = (share.data?.picklist ?? []) as PickEntry[];
+  const apply = async (change: Change) => {
+    const next = picklistOf(change({ ...emptyScout(), picklists: { [eventId]: list } }), eventId) as PickEntry[];
+    const before = share.data;
+    if (before) shared.set(share.key, { ...before, picklist: next });
+    try {
+      const saved = await api(`/api/groups/${share.group.id}/events/${eventId}/picklist`, { method: 'PUT', body: { list: next, version: before?.version ?? 0 } });
+      shared.set(share.key, { ...(before ?? { notes: [], updatedAt: 0, updatedBy: null }), ...saved } as any);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        shared.set(share.key, { ...(before as any), picklist: error.body.picklist, version: error.body.version });
+        setNotice('Someone in your group changed this picklist at the same time. You are now looking at their version; make your change again.');
+      } else {
+        if (before) shared.set(share.key, before);
+        setNotice('The picklist could not be saved. Check your connection and try again.');
+      }
+    }
+  };
+  return { list, apply, share };
+}
+
+/** Match and team notes: the reader's own, or their active group's (one note per target, last edit wins). */
+function useNotes(eventId: string) {
+  const { state, update } = useScout();
+  const { api, shared, setNotice } = useAccount();
+  const share = useSharedEvent(eventId);
+  if (!share) return { get: (target: string) => ({ text: noteFor(state, eventId, target), author: null as string | null }), set: (target: string, text: string) => update(s => setNote(s, eventId, target, text)), share: null };
+  const notes = share.data?.notes ?? [];
+  return {
+    share,
+    get: (target: string) => { const note = notes.find(n => n.target === target); return { text: note?.text ?? '', author: note?.author ?? null }; },
+    set: async (target: string, text: string) => {
+      const before = share.data;
+      const rest = notes.filter(n => n.target !== target);
+      if (before) shared.set(share.key, { ...before, notes: text.trim() ? [...rest, { target, text: text.trim(), author: 'You', updatedAt: Date.now() }] : rest });
+      try { await api(`/api/groups/${share.group.id}/events/${eventId}/notes`, { method: 'PUT', body: { target, text } }); void share.reload(); }
+      catch { if (before) shared.set(share.key, before); setNotice('The note could not be saved. Check your connection and try again.'); }
+    },
+  };
+}
 
 const fmt = (value: any) => value == null ? '—' : typeof value === 'number' && !Number.isInteger(value) ? value.toFixed(1) : String(value);
 
@@ -50,22 +102,22 @@ export function EventRankingsTable({ division, skills, name, onOpenTeam }: { div
 
 /** A note on one match, saved for this event. */
 export function MatchNote({ eventId, match }: { eventId: string; match: any }) {
-  const { state, update } = useScout();
+  const notes = useNotes(eventId);
   const target = `match:${match.id}`;
-  const saved = noteFor(state, eventId, target);
+  const { text: saved, author } = notes.get(target);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(saved);
   if (!eventId || match.id == null) return null;
   if (!editing) return <div className="mt-3 border-t border-white/[.07] pt-2">
-    {saved && <p className="mb-1.5 whitespace-pre-line text-xs text-white/70"><NotebookPen className="mr-1 inline h-3 w-3 text-[var(--c-accent)]" aria-hidden="true" />{saved}</p>}
+    {saved && <p className="mb-1.5 whitespace-pre-line text-xs text-white/70"><NotebookPen className="mr-1 inline h-3 w-3 text-[var(--c-accent)]" aria-hidden="true" />{saved}{author && <span className="ml-1.5 text-[10px] text-white/35">— {author}</span>}</p>}
     <button onClick={() => { setDraft(saved); setEditing(true); }} className="text-[11px] text-white/40 hover:text-white">{saved ? 'Edit note' : `Add note for ${match.name}`}</button>
   </div>;
-  return <form className="mt-3 border-t border-white/[.07] pt-2" onSubmit={event => { event.preventDefault(); update(s => setNote(s, eventId, target, draft)); setEditing(false); }}>
+  return <form className="mt-3 border-t border-white/[.07] pt-2" onSubmit={event => { event.preventDefault(); void notes.set(target, draft); setEditing(false); }}>
     <textarea ref={element => element?.focus({ preventScroll: true })} value={draft} onChange={event => setDraft(event.target.value)} rows={3} maxLength={2000} aria-label={`Note for ${match.name}`}
       placeholder="What did you see? Autonomous, driving, defence, breakdowns…" className="w-full resize-y border border-white/15 bg-black/30 p-2 text-xs text-white placeholder:text-white/30 focus:border-[var(--c-accent)] focus:outline-none" />
     <div className="mt-1.5 flex gap-2"><button type="submit" className="bg-[var(--c-accent)] px-3 py-1 text-xs font-semibold text-white">Save</button>
       <button type="button" onClick={() => setEditing(false)} className="text-xs text-white/45 hover:text-white">Cancel</button>
-      {saved && <button type="button" onClick={() => { update(s => setNote(s, eventId, target, '')); setEditing(false); }} className="ml-auto text-xs text-white/45 hover:text-rose-300">Delete</button>}</div>
+      {saved && <button type="button" onClick={() => { void notes.set(target, ''); setEditing(false); }} className="ml-auto text-xs text-white/45 hover:text-rose-300">Delete</button>}</div>
   </form>;
 }
 
@@ -78,8 +130,8 @@ const TIER_STYLE: Record<string, string> = { first: 'text-emerald-300 border-eme
  * selection.
  */
 export function PicklistTab({ eventId, eventName, teams, divisions, skills, onOpenTeam, cloudNote }: { eventId: string; eventName: string; teams: any[]; divisions: any[]; skills: any[]; onOpenTeam: (team: any) => void; cloudNote?: React.ReactNode }) {
-  const { state, update, teamRows } = useScout();
-  const list = picklistOf(state, eventId) as PickEntry[];
+  const { teamRows } = useScout();
+  const { list, apply: update, share } = usePicklist(eventId);
   const [adding, setAdding] = useState('');
   const [hidePicked, setHidePicked] = useState(false);
   const standings = useMemo(() => new Map<string, any>(divisions.flatMap((division: any) => eventRankingRows(division, skills).map((row: any) => [row.number, { ...row, division: division.name }] as [string, any]))), [divisions, skills]);
@@ -91,7 +143,7 @@ export function PicklistTab({ eventId, eventName, teams, divisions, skills, onOp
     { key: 'rank', label: 'Event rank' }, { key: 'opr', label: 'OPR' }, { key: 'rating', label: 'VCR' }, { key: 'picked', label: 'Picked', value: (r: any) => r.picked ? 'yes' : '' }, { key: 'note', label: 'Note' },
   ];
   const csvRows = list.map((entry, index) => ({ ...entry, order: index + 1, rank: standings.get(entry.number)?.rank ?? '', opr: standings.get(entry.number)?.opr ?? '', rating: rating(entry.number)?.rating ?? '' }));
-  const addTop = () => update(s => available.slice(0, 8).reduce((acc: any, number: string) => addToPicklist(acc, eventId, number), s));
+  const addTop = () => { void update(s => available.slice(0, 8).reduce((acc: any, number: string) => addToPicklist(acc, eventId, number), s)); };
 
   return <article className="border border-white/10 bg-[var(--c-surface)] p-6">
     <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[11px] italic text-white/45">Alliance selection</p><h2 className="font-display mt-1 text-2xl">Picklist</h2>
@@ -101,8 +153,10 @@ export function PicklistTab({ eventId, eventName, teams, divisions, skills, onOp
         <CsvButton columns={csvColumns} rows={csvRows} name={`${eventName} picklist`} />
       </div>
     </div>
+    {share ? <p className="mt-3 inline-flex items-center gap-1.5 border border-emerald-400/25 bg-emerald-400/[.06] px-2.5 py-1 text-xs text-emerald-200"><Users className="h-3.5 w-3.5" aria-hidden="true" />Shared with {share.group.name}{share.data?.updatedBy ? ` · last change by ${share.data.updatedBy}` : ''}</p>
+      : <p className="mt-3 text-xs text-white/40">Saved in this browser. Sign in and pick a scouting group to share it with your team.</p>}
     {cloudNote}
-    <form className="mt-4 flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); if (adding) { update(s => addToPicklist(s, eventId, adding)); setAdding(''); } }}>
+    <form className="mt-4 flex flex-wrap gap-2" onSubmit={event => { event.preventDefault(); if (adding) { void update(s => addToPicklist(s, eventId, adding)); setAdding(''); } }}>
       <select value={adding} onChange={e => setAdding(e.target.value)} aria-label="Team to add" className="h-9 min-w-56 border border-white/15 bg-black/30 px-2 text-sm text-white [&>option]:bg-[var(--c-surface-2)]">
         <option value="">Add a team…</option>{available.map((number: string) => <option key={number} value={number}>{number}{standings.get(number) ? ` · #${standings.get(number)!.rank}` : ''}</option>)}
       </select>
@@ -138,5 +192,6 @@ export function EventActions({ event, info, location }: { event: any; info: any;
   return <div className="mt-4 flex flex-wrap items-center gap-2">
     <span className="inline-flex items-center border border-white/15 pr-3 text-xs text-white/65"><FavoriteButton kind="event" item={{ id: event.id, sku: event.sku ?? info?.sku, name: info?.name ?? event.name, date: String(start).slice(0, 10) }} />Favourite</span>
     <CalendarButton event={{ id: event.id, sku: event.sku ?? info?.sku, name: info?.name ?? event.name, start, end: info?.end ?? start, location, url: info?.officialUrl }} />
+    <VoteButtons target={`event:${event.id}`} />
   </div>;
 }
