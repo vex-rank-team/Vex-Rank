@@ -29,7 +29,7 @@ class ApiException(message: String) : Exception(message)
 class VexRankApi(private val baseUrl: String = DEFAULT_BASE_URL) {
 
     companion object {
-        const val DEFAULT_BASE_URL = "https://vexrank-api-test.vexrank-eason.workers.dev"
+        const val DEFAULT_BASE_URL = "https://vexrank-api-test.qiansteven54.workers.dev"
     }
 
     private val json = Json { ignoreUnknownKeys = true; coerceInputValues = true }

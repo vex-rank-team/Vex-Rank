@@ -2,3 +2,6 @@
 .DS_Store
 .build/
 xcuserdata/
+
+# events.vex token for direct team profiles; see App/Config/Base.xcconfig
+App/Config/Secrets.xcconfig

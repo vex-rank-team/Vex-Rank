@@ -14,6 +14,19 @@ public struct TeamDirectoryResponse: Codable, Sendable {
     public let total: Int
     public let includesInactive: Bool?
     public let teams: [DirectoryTeam]
+    /// Which program the list is for. Files built before VEX IQ have none and
+    /// are V5's.
+    public let program: String?
+
+    /// Whether this is the list for `program`. A server that predates VEX IQ
+    /// answers the IQ request with the V5 file, so an IQ request is satisfied
+    /// only by a file that says VIQRC.
+    public func matches(_ program: Program) -> Bool {
+        (self.program ?? Program.v5rc.rawValue) == program.rawValue
+    }
+
+    /// What a reader sees when VEX IQ was asked for and the IQ list is not there.
+    public static let iqUnavailable = "The VEX IQ team directory isn't available yet."
 
     /// `asOf` carries milliseconds ("2026-09-16T15:47:40.805Z"), which the
     /// default ISO-8601 parser rejects outright - it returned nil and the

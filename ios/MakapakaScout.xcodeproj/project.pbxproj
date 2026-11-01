@@ -43,6 +43,7 @@
 		A7AC1847C0BA504280D812F4 /* VEXRankApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "VEXRankApp.swift"; path = "App/VEXRankApp.swift"; sourceTree = "<group>"; };
 		12DCD5C8977956CCAC27F407 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = "App/Assets.xcassets"; sourceTree = "<group>"; };
 		45BBF11362675F6CAA3C2B8F /* VEXRankKit */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = VEXRankKit; path = VEXRankKit; sourceTree = "<group>"; };
+		913034C2DFE45ACD8E61E683 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Base.xcconfig; path = "App/Config/Base.xcconfig"; sourceTree = "<group>"; };
 		9E871DE359D151C69619CA06 /* MakapakaScout.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MakapakaScout.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -71,6 +72,7 @@
 				A7AC1847C0BA504280D812F4 /* VEXRankApp.swift */,
 				12DCD5C8977956CCAC27F407 /* Assets.xcassets */,
 				45BBF11362675F6CAA3C2B8F /* VEXRankKit */,
+				913034C2DFE45ACD8E61E683 /* Base.xcconfig */,
 				8F7121BF97145A59848E4802 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -192,12 +194,14 @@
 		};
 		518C131D06735FFC9361ABCC /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 913034C2DFE45ACD8E61E683 /* Base.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = JJRCKVACCR;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = App/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Makapaka Scout";
 				INFOPLIST_KEY_CFBundleName = "Makapaka Scout";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -214,12 +218,14 @@
 		};
 		3FE183B996A1563E923CB93E /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 913034C2DFE45ACD8E61E683 /* Base.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = JJRCKVACCR;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = App/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Makapaka Scout";
 				INFOPLIST_KEY_CFBundleName = "Makapaka Scout";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

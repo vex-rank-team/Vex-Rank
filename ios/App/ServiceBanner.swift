@@ -11,6 +11,7 @@ import VEXRankKit
 struct ServiceBanner: View {
     @Environment(\.vexTheme) private var theme
     @Environment(\.openURL) private var openURL
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let store: AppConfigStore
 
     var body: some View {
@@ -63,6 +64,7 @@ struct ServiceBanner: View {
                     .font(.caption.weight(.semibold))
                     .buttonStyle(.borderedProminent)
                     .tint(theme.accent)
+                    .foregroundStyle(theme.onAccent)
             }
 
             if let dismiss {
@@ -70,8 +72,14 @@ struct ServiceBanner: View {
                     Image(systemName: "xmark")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(.secondary)
+                        // A 12pt glyph, but a 44pt target: it sat a few points
+                        // from the tab bar and was easy to miss.
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .padding(.vertical, -12)
+                .padding(.trailing, -12)
                 .accessibilityLabel("Dismiss")
             }
         }
@@ -80,7 +88,8 @@ struct ServiceBanner: View {
         .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(theme.accent.opacity(0.35)))
         .padding(.horizontal, 12)
         .padding(.bottom, 6)
-        .transition(.move(edge: .bottom).combined(with: .opacity))
+        // Rises from the tab bar it sits on; Reduce Motion just fades it.
+        .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
     }
 }
 
@@ -94,7 +103,10 @@ extension View {
     func serviceBanner(_ store: AppConfigStore) -> some View {
         safeAreaInset(edge: .bottom) {
             ServiceBanner(store: store)
+                // Keyed on both kinds. On the update alone, dismissing a note
+                // made it vanish in a frame while an update slid away.
                 .animation(.snappy, value: store.pendingUpdate)
+                .animation(.snappy, value: store.pendingAnnouncement?.id)
         }
     }
 }

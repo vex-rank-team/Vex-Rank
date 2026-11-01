@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cacheDecision, FRESH_FOR, STALE_FOR } from '../cloudflare/cache-policy.ts';
+import { cacheDecision, FRESH_FOR, STALE_FOR, isRecentEvent } from '../cloudflare/cache-policy.ts';
 
 const NOW = 1_800_000_000_000;
 // A row's expiry is written as "now + FRESH_FOR", so its age is derived from it.
@@ -42,4 +42,13 @@ test('pulling to refresh always takes the slow, truthful path', () => {
 test('a row that expired this instant is stale, not fresh', () => {
   assert.equal(cacheDecision({ expires_at: NOW }, NOW, false).serve, 'stale');
   assert.equal(cacheDecision({ expires_at: NOW + 1 }, NOW, false).serve, 'fresh');
+});
+
+test('an event is recent while it runs and for three days after it ends', () => {
+  const now = Date.parse('2026-11-10T12:00:00Z');
+  assert.equal(isRecentEvent({ end: '2026-11-08T00:00:00Z' }, now), true);
+  assert.equal(isRecentEvent({ end: '2026-11-01T00:00:00Z' }, now), false);
+  assert.equal(isRecentEvent({ end: '2026-11-01T00:00:00Z', ongoing: true }, now), true);
+  assert.equal(isRecentEvent({ end: null }, now), false);
+  assert.equal(isRecentEvent({ end: '2026-11-24T00:00:00Z' }, now), false, 'an event weeks away is not refreshed every minute');
 });

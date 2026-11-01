@@ -2553,7 +2553,7 @@ final class StrengthProfileTests: XCTestCase {
         let detail = try fixture("event-detail")
         for row in detail.divisions.flatMap(\.rankings) {
             let profile = try XCTUnwrap(detail.strengthProfile(for: row.team.name))
-            XCTAssertEqual(profile.axes.map(\.kind), StrengthAxis.Kind.allCases)
+            XCTAssertEqual(profile.axes.map(\.kind), StrengthAxis.Kind.v5)
             for axis in profile.axes {
                 guard let score = axis.score, let place = axis.place else { continue }
                 XCTAssertTrue((0...1).contains(score), "\(row.team.name) \(axis.label)")
@@ -2649,5 +2649,150 @@ final class SnapshotNameTests: XCTestCase {
         let name = try XCTUnwrap(VEXRankAPI.snapshotName(for: "/api/teams/..%2F..%2Fx?profile=v8&season=../1"))
         XCTAssertFalse(name.contains("/"))
         XCTAssertFalse(name.contains("."))
+    }
+}
+
+/// VEX IQ, read from real responses (website/tests/fixtures/viqrc). The same
+/// cases the website's tests/viqrc.test.mjs runs, so the two readers agree.
+final class VEXIQTests: XCTestCase {
+    private func load<T: Decodable>(_ type: T.Type, _ name: String) throws -> T {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "Fixtures/\(name)", withExtension: "json"), "missing \(name)")
+        return try JSONDecoder().decode(T.self, from: Data(contentsOf: url))
+    }
+
+    func testEventIsReadAsVEXIQ() throws {
+        let detail = try load(EventDetailResponse.self, "viqrc-event-65767")
+        XCTAssertTrue(detail.isIQ)
+        XCTAssertEqual(detail.event.program?.id, 41)
+        XCTAssertFalse(try load(EventDetailResponse.self, "event-detail").isIQ, "a V5 event must not read as IQ")
+    }
+
+    func testATeamworkMatchIsOnePairAndOneScore() throws {
+        let detail = try load(EventDetailResponse.self, "viqrc-event-65767")
+        let first = try XCTUnwrap(detail.divisions[0].matches?.first)
+        // The API's shape: red and blue one-team sides with equal scores.
+        XCTAssertEqual(first.red?.score, first.blue?.score)
+        let pair = first.teamwork
+        XCTAssertEqual(Set(pair.teams), ["50380B", "86995D"])
+        XCTAssertEqual(pair.score, 314)
+
+        let mine = detail.iqMatches(for: "86995D")
+        XCTAssertEqual(mine.first?.partners, ["50380B"])
+        XCTAssertEqual(mine.first?.score, 314)
+        // The V5 reader would have called it a tie against an opponent.
+        XCTAssertEqual(detail.matches(for: "86995D").first?.outcome, .tied)
+    }
+
+    func testStandingsKeepTheEventRankAndAddScores() throws {
+        let detail = try load(EventDetailResponse.self, "viqrc-event-65767")
+        let rows = detail.divisions[0].iqStandings
+        XCTAssertEqual(rows.count, 28)
+        XCTAssertEqual(rows.map(\.rank), rows.map(\.rank).sorted())
+        let own = try XCTUnwrap(detail.iqStanding(for: "86995D"))
+        XCTAssertEqual(own.rank, 4)
+        XCTAssertEqual(own.highScore, 330)
+        XCTAssertFalse(own.averageFromEvent)
+        XCTAssertEqual(try XCTUnwrap(own.average), 275.1, accuracy: 0.05, "matches the website's 275.1")
+    }
+
+    func testTwoDivisionsAndAnEmptyFinalDivision() throws {
+        let detail = try load(EventDetailResponse.self, "viqrc-event-61958")
+        XCTAssertEqual(detail.divisions.map(\.name), ["Division A", "Division B", "Final"])
+        XCTAssertTrue(detail.divisions[2].iqStandings.isEmpty)
+        // No elimination rounds come back for IQ, so there is no bracket to offer.
+        XCTAssertFalse(detail.availableSections.contains(.bracket))
+    }
+
+    func testStrengthProfileUsesMeasuredAxesOnly() throws {
+        let detail = try load(EventDetailResponse.self, "viqrc-event-65767")
+        let profile = try XCTUnwrap(detail.iqStrengthProfile(for: "86995D"))
+        XCTAssertEqual(profile.axes.map(\.kind), StrengthAxis.Kind.iq)
+        XCTAssertFalse(profile.isProvisional)
+        XCTAssertEqual(profile.axes.first { $0.kind == .high }?.display, "330")
+        XCTAssertEqual(profile.axes.first { $0.kind == .driver }?.place, 1)
+    }
+
+    func testV5StrengthProfileStillHasItsSixAxes() throws {
+        let detail = try load(EventDetailResponse.self, "event-detail")
+        let number = try XCTUnwrap(detail.divisions.first?.rankings.first?.team.name)
+        XCTAssertEqual(detail.strengthProfile(for: number)?.axes.map(\.kind), StrengthAxis.Kind.v5)
+    }
+
+    func testScoreSeriesHasOnePointPerPlayedMatch() throws {
+        let detail = try load(EventDetailResponse.self, "viqrc-event-65767")
+        let points = IQScoreSeries.points(from: detail.iqMatches(for: "86995D"))
+        XCTAssertEqual(points.count, 8)
+        XCTAssertEqual(points.map(\.match), Array(1...8))
+        XCTAssertTrue(points.allSatisfy { $0.cumulative > 0 })
+    }
+
+    func testTeamProfileCarriesProgramAndPendingRating() throws {
+        let profile = try load(TeamProfileResponse.self, "viqrc-team-86995D")
+        XCTAssertEqual(profile.program, "VIQRC")
+        XCTAssertEqual(profile.ratingStatus, "pending")
+        XCTAssertTrue(profile.ratingHistory.isEmpty)
+        XCTAssertNil(profile.events?.first?.eliminationResult)
+    }
+
+    func testProgramTable() {
+        XCTAssertEqual(Program.named("VIQRC"), .viqrc)
+        XCTAssertEqual(Program.named("viqrc"), .v5rc)
+        XCTAssertEqual(Program.named(nil), .v5rc)
+        XCTAssertEqual(Program.viqrc.defaultSeason, 203)
+        XCTAssertEqual(Program.viqrc.grades, ["Middle School", "Elementary School"])
+        XCTAssertEqual(Program.iqSeasons.map(\.id), [203, 196, 189])
+        XCTAssertEqual(StatCategory.all(for: .viqrc).map(\.source), [.skills, .skills, .skills])
+        XCTAssertEqual(StatCategory.all(for: .v5rc).count, StatCategory.all.count)
+    }
+
+    func testConfigSeasonsPerProgram() throws {
+        let wire = #"{"currentSeason":204,"programs":{"V5RC":{"currentSeason":204},"VIQRC":{"currentSeason":203},"VEXU":{"currentSeason":205}}}"#
+        let config = try JSONDecoder().decode(AppConfig.self, from: Data(wire.utf8))
+        XCTAssertEqual(config.currentSeason(for: .viqrc), 203)
+        XCTAssertEqual(config.currentSeason(for: .v5rc), 204)
+        XCTAssertNil(config.programs["VEXU"], "unknown programs are dropped")
+        // A config from before VEX IQ: each program falls back to its built-in season.
+        let old = try JSONDecoder().decode(AppConfig.self, from: Data(#"{"currentSeason":204}"#.utf8))
+        XCTAssertEqual(old.currentSeason(for: .viqrc), 203)
+    }
+
+    func testIQSnapshotsAreNamedApartFromV5() {
+        XCTAssertEqual(VEXRankAPI.snapshotName(for: "/api/rankings?data=v49&program=VIQRC"), "rankings-VIQRC")
+        XCTAssertEqual(VEXRankAPI.snapshotName(for: "/api/events?season=203&classification=v49&program=VIQRC"), "events-203-VIQRC")
+        XCTAssertEqual(VEXRankAPI.snapshotName(for: "/api/teams/86995d?profile=v8&season=203&program=VIQRC"), "team-86995D-203-VIQRC")
+        // V5 names are unchanged.
+        XCTAssertEqual(VEXRankAPI.snapshotName(for: "/api/rankings?data=v49"), "rankings")
+        XCTAssertEqual(VEXRankAPI.snapshotName(for: "/api/events?season=204&classification=v49"), "events-204")
+    }
+}
+
+/// The directory must be the one for the program on screen: a server that
+/// predates VEX IQ answers the IQ request with the V5 file.
+final class DirectoryProgramTests: XCTestCase {
+    private func directory(_ program: String?) throws -> TeamDirectoryResponse {
+        let field = program.map { #","program":"\#($0)""# } ?? ""
+        let json = #"{"asOf":"2026-10-01T00:00:00.000Z","total":0,"teams":[]\#(field)}"#
+        return try JSONDecoder().decode(TeamDirectoryResponse.self, from: Data(json.utf8))
+    }
+
+    func testV5FileIsRefusedForIQ() throws {
+        let v5 = try directory(nil)
+        XCTAssertFalse(v5.matches(.viqrc))
+        XCTAssertTrue(v5.matches(.v5rc), "V5 files predate the field and stay valid")
+    }
+
+    func testIQFileIsAcceptedOnlyForIQ() throws {
+        let iq = try directory("VIQRC")
+        XCTAssertTrue(iq.matches(.viqrc))
+        XCTAssertFalse(iq.matches(.v5rc))
+        XCTAssertTrue(try directory("V5RC").matches(.v5rc))
+    }
+
+    func testTheRealV5SnapshotDecodesAsV5() throws {
+        let url = try XCTUnwrap(Bundle.module.url(forResource: "Fixtures/team-directory", withExtension: "json"))
+        let real = try JSONDecoder().decode(TeamDirectoryResponse.self, from: Data(contentsOf: url))
+        XCTAssertNil(real.program)
+        XCTAssertTrue(real.matches(.v5rc))
+        XCTAssertFalse(real.matches(.viqrc))
     }
 }

@@ -7,6 +7,7 @@ import VEXRankKit
 struct TeamsDirectoryView: View {
     @Environment(\.vexTheme) private var theme
     @Environment(\.favouriteTeams) private var favourites
+    @Environment(\.program) private var program
     @State private var model = TeamsDirectoryModel()
     @State private var scope: Scope = .favourites
     @State private var query = ""
@@ -20,7 +21,6 @@ struct TeamsDirectoryView: View {
     @State private var region: String?
     @State private var grade: String?
 
-    private static let grades = ["High School", "Middle School"]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -64,6 +64,7 @@ struct TeamsDirectoryView: View {
                 Button("Browse all teams") { scope = .all }
                     .buttonStyle(.borderedProminent)
                     .tint(theme.accent)
+                    .foregroundStyle(theme.onAccent)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if shown.isEmpty {
@@ -117,9 +118,10 @@ struct TeamsDirectoryView: View {
                 } description: {
                     Text(message)
                 } actions: {
-                    Button("Retry") { Task { await model.load() } }
+                    Button("Retry") { Task { await model.load(program: program) } }
                         .buttonStyle(.borderedProminent)
                         .tint(theme.accent)
+                        .foregroundStyle(theme.onAccent)
                 }
             case .loaded:
                 let results = model.search(query: query,
@@ -127,7 +129,17 @@ struct TeamsDirectoryView: View {
                 VStack(spacing: 0) {
                     filters(showing: results.count)
                     Divider()
-                    if results.isEmpty {
+                    if results.isEmpty, query.trimmingCharacters(in: .whitespaces).isEmpty {
+                        // Filters alone emptied it; "No results for ''" says nothing.
+                        ContentUnavailableView {
+                            Label("No teams match", systemImage: "line.3.horizontal.decrease.circle")
+                        } description: {
+                            Text("No team on record meets these filters.")
+                        } actions: {
+                            Button("Clear filters") { country = nil; region = nil; grade = nil }
+                                .tint(theme.accent)
+                        }
+                    } else if results.isEmpty {
                         ContentUnavailableView.search(text: query)
                     } else {
                         list(results)
@@ -136,7 +148,7 @@ struct TeamsDirectoryView: View {
             }
         }
         .animation(.easeOut(duration: 0.35), value: model.state.isLoaded)
-        .task { await model.load() }
+        .task { await model.load(program: program) }
     }
 
     private func filters(showing: Int) -> some View {
@@ -148,7 +160,7 @@ struct TeamsDirectoryView: View {
                     region = nil
                 }
                 menu(region ?? "All regions", "map", model.regions(in: country), "All regions") { region = $0 }
-                menu(grade ?? "All levels", "graduationcap", Self.grades, "All levels") { grade = $0 }
+                menu(grade ?? "All levels", "graduationcap", program.grades, "All levels") { grade = $0 }
             }
             .font(.caption.weight(.semibold))
 
@@ -195,7 +207,7 @@ struct TeamsDirectoryView: View {
                     }
                     Text([team.grade, team.place].compactMap { $0 }.filter { !$0.isEmpty }
                         .joined(separator: " · "))
-                        .font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
+                        .font(.caption2).foregroundStyle(.subtle).lineLimit(1)
                 }
                 .padding(.vertical, 2)
             }
@@ -248,10 +260,16 @@ final class TeamsDirectoryModel {
     }
 
     @MainActor
-    func load() async {
+    func load(program: Program = .v5rc) async {
         state = .loading
         do {
             let response = try await api.teamDirectory()
+            guard response.matches(program) else {
+                // Never show one program's teams under the other's name.
+                state = .failed(program.isIQ ? TeamDirectoryResponse.iqUnavailable
+                                             : "The team directory could not be loaded. Please retry.")
+                return
+            }
             let built = await Task.detached(priority: .userInitiated) {
                 Self.index(response.teams)
             }.value
@@ -261,6 +279,9 @@ final class TeamsDirectoryModel {
             total = response.total
             updated = response.updated
             state = .loaded
+        } catch VEXRankError.upstream(let status) where status == 503 && program.isIQ {
+            // Retrying will not help: the IQ directory file is not up yet.
+            state = .failed(TeamDirectoryResponse.iqUnavailable)
         } catch {
             state = .failed(error.localizedDescription)
         }

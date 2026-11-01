@@ -1,4 +1,6 @@
 import { vexCollection, vexJson, mapLimit } from '@/lib/vex-api';
+import { isRecentEvent, RECENT_FRESH_FOR, FRESH_FOR_HEADER } from '@/cloudflare/cache-policy';
+import { officialEventUrl, programOf } from '@/lib/programs.mjs';
 const API_ROOT = 'https://events.vex.com/api/v2';
 
 async function readCache(request:Request){try{return await (globalThis as any).caches?.default?.match(request)}catch{return undefined}}
@@ -38,13 +40,18 @@ export async function GET(request:Request, context:{params:Promise<{id:string}>}
   try {
   const event = await vexJson(`${API_ROOT}/events/${id}`,headers);
   const divisions = event.divisions ?? [];
-  const officialUrl = `https://events.vex.com/robot-competitions/vex-robotics-competition/${event.sku}.html`;
+  const program = programOf(event);
+  const officialUrl = officialEventUrl(program, event.sku);
   const organizerPromise=(async()=>{try{const officialResponse=await fetch(officialUrl,{headers:{Accept:'text/html','User-Agent':'VEXRank/1.0'}});if(officialResponse.ok)return organizerSections(await officialResponse.text())}catch{}return{general:'',agenda:'',travel:'',webcast:''}})();
   const [teams,awards,skills,divisionData,organizer] = await Promise.all([
     getAllTeams(id,headers),
     getAll(`/events/${id}/awards`,headers),
     getAll(`/events/${id}/skills`,headers),
     mapLimit(divisions,1,async (division:any) => {
+      // V5 elimination rounds. VEX IQ teamwork finals are not in these rounds
+      // and are not fetched yet: how they are encoded needs confirming with a
+      // token first (docs/viqrc-plan.md, open question 3). IQ screens show no
+      // finals section until then rather than an empty one.
       const eliminationRounds='round%5B%5D=3&round%5B%5D=4&round%5B%5D=5&round%5B%5D=6';
       const [rankings,qualificationMatches,eliminationMatches] = await Promise.all([
         getAll(`/events/${id}/divisions/${division.id}/rankings`,headers),
@@ -54,7 +61,9 @@ export async function GET(request:Request, context:{params:Promise<{id:string}>}
       const matches=[...qualificationMatches,...eliminationMatches].sort((a:any,b:any)=>Number(a.round)-Number(b.round)||Number(a.instance)-Number(b.instance)||Number(a.matchnum)-Number(b.matchnum));
       return {
         id:division.id,name:division.name,
-        rankings:rankings.map((row:any)=>({rank:row.rank,team:row.team,wins:row.wins,losses:row.losses,ties:row.ties,wp:row.wp,ap:row.ap,sp:row.sp,highScore:row.high_score})),
+        // IQ ranks by average teamwork score. Passed through when upstream
+        // serves it; IQ screens compute it from the matches when it does not.
+        rankings:rankings.map((row:any)=>({rank:row.rank,team:row.team,wins:row.wins,losses:row.losses,ties:row.ties,wp:row.wp,ap:row.ap,sp:row.sp,highScore:row.high_score,...(program==='VIQRC'?{averagePoints:row.average_points??null,totalPoints:row.total_points??null}:{})})),
         matches:matches.map((match:any)=>({id:match.id,name:match.name,round:Number(match.round),instance:match.instance,matchnum:match.matchnum,scheduled:match.scheduled,started:match.started,field:match.field,scored:Boolean(match.scored),alliances:match.alliances})),
       };
     }),
@@ -71,8 +80,13 @@ export async function GET(request:Request, context:{params:Promise<{id:string}>}
     awards:awards.map((award:any)=>({id:award.id,title:award.title,designation:award.designation,classification:award.classification,teamWinners:award.teamWinners ?? [],individualWinners:award.individualWinners ?? []})),
     skills:skills.map((skill:any)=>({id:skill.id,team:skill.team,type:skill.type,rank:skill.rank,score:skill.score,attempts:skill.attempts ?? 0})),
     organizer,
-  },{headers:{'Cache-Control':'public, max-age=300, s-maxage=300, stale-while-revalidate=1800'}});
-  await writeCache(request,response);return response;
+  },{headers:isRecentEvent(event)
+    // Results are still arriving: a short life everywhere, and the Worker told
+    // to keep it a minute rather than its usual fifteen.
+    ?{'Cache-Control':'public, max-age=30, stale-while-revalidate=60',[FRESH_FOR_HEADER]:String(RECENT_FRESH_FOR)}
+    :{'Cache-Control':'public, max-age=300, s-maxage=300, stale-while-revalidate=1800'}});
+  if(!isRecentEvent(event))await writeCache(request,response);
+  return response;
   } catch (error) {
     console.error('Event data load failed:', error instanceof Error ? error.message : 'Unknown error');
     return Response.json({error:'Official event data could not be fully loaded. Please retry.'},{status:502,headers:{'Cache-Control':'no-store'}});

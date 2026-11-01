@@ -60,9 +60,9 @@ struct BracketView: View {
                             // with the matches that feed them.
                             RoundedRectangle(cornerRadius: 8)
                                 .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(.subtle)
                                 .frame(height: 56)
-                                .overlay(Text("Not posted").font(.caption2).foregroundStyle(.tertiary))
+                                .overlay(Text("Not posted").font(.caption2).foregroundStyle(.subtle))
                         }
                     }
                     .frame(height: height)

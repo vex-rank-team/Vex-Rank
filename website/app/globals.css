@@ -116,6 +116,10 @@ h1, h2, h3 { overflow-wrap: anywhere; }
   --c-surface-2: #151a22;   /* raised: bracket cards, tooltips */
   --c-accent: #ee3240;      /* 4.57:1 on --c-surface; the brand red at #ed2b3a
                                measured 4.43:1, just under the small-text floor */
+  /* Text set on an accent fill. White on the lighter accents measured 1.5-2.1:1,
+     so those themes ink it instead; on the red, white (4.07:1) is kept as the
+     brand pairing and only ever carries semibold labels. */
+  --c-on-accent: #ffffff;
   --c-band: #282c20;        /* full-bleed season band */
   --c-hero: #0b0d11;
   --c-hero-a: #15181e;
@@ -199,6 +203,7 @@ h1, h2, h3 { overflow-wrap: anywhere; }
   --c-surface: #17130f;
   --c-surface-2: #1e1914;
   --c-accent: #f5a524;      /* 9.05:1 on surface */
+  --c-on-accent: #0b0d10;   /* 9.53:1 on the accent */
   --c-band: #2c2416;
   --c-hero: #100d0a;
   --c-hero-a: #1c1712;
@@ -212,6 +217,7 @@ h1, h2, h3 { overflow-wrap: anywhere; }
   --c-surface: #0e1420;
   --c-surface-2: #141c2c;
   --c-accent: #38bdf8;      /* 8.60:1 on surface */
+  --c-on-accent: #0b0d10;   /* 9.08:1 on the accent */
   --c-band: #16283a;
   --c-hero: #080d17;
   --c-hero-a: #121b2b;
@@ -225,6 +231,7 @@ h1, h2, h3 { overflow-wrap: anywhere; }
   --c-surface: #121711;
   --c-surface-2: #1a2018;
   --c-accent: #a3e635;      /* 12.04:1 on surface */
+  --c-on-accent: #0b0d10;   /* 12.90:1 on the accent */
   --c-band: #232d1c;
   --c-hero: #0b0e0a;
   --c-hero-a: #161c13;
@@ -488,6 +495,13 @@ html.dark { --background: var(--c-page); }
     .float-card:focus-visible { transform: translateY(-2px); }
   }
 
+  /* Touch gets no hover, so a card would otherwise give no sign a tap landed
+     until the next view painted. A slight press, released quickly. */
+  @media (hover: none) {
+    .float-card { transition: transform 160ms cubic-bezier(0.22, 0.61, 0.36, 1); }
+    .float-card:active { transform: scale(0.985); transition-duration: 60ms; }
+  }
+
   /* Ranking figures must not reflow column to column as values change. */
   table, [class*="tabular"], td, th {
     font-variant-numeric: tabular-nums;
@@ -514,6 +528,25 @@ html.dark { --background: var(--c-page); }
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* iOS Safari zooms the page into any field set below 16px the moment it is
+   focused, and does not zoom back out. Unlayered, so it outranks the text-sm
+   and text-xs utilities on phones only. */
+@media (max-width: 639px) {
+  input, select, textarea { font-size: 16px; }
+}
+
+/* A tap on a button flashed a grey slab the shape of its box, which looked like
+   a rendering fault on the borderless controls. A dim on press replaces it, so
+   every tap still answers within a frame; cards press in instead (above). */
+button, a, [role="link"] { -webkit-tap-highlight-color: transparent; }
+/* In the base layer so any transition or opacity utility on a control wins. */
+@layer base {
+  @media (hover: none) {
+    :where(button, a, [role="link"]):not(.float-card) { transition: opacity 160ms ease; }
+    :where(button, a, [role="link"]):not(.float-card):active { opacity: 0.6; transition-duration: 40ms; }
   }
 }
 

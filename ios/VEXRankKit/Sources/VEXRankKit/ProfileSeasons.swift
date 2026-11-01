@@ -51,16 +51,24 @@ extension TeamProfileResponse {
             }
         }()
 
+        let history: [RatingPoint] = ratingHistory.filter { keep($0.seasonId) } + other.ratingHistory
+        let standings: [TeamEventStanding] = (rankings ?? []).filter { keep($0.seasonId) } + (other.rankings ?? [])
+        let awarded: [Award] = (awards ?? []).filter { keep($0.seasonId) } + (other.awards ?? [])
+        let runs: [SkillRun] = (skills ?? []).filter { keep($0.seasonId) } + (other.skills ?? [])
+        let loaded: [Int] = Array(Set(loadedSeasonIds ?? []).union(incoming)).sorted()
         return TeamProfileResponse(
             team: other.team,
-            ratingHistory: ratingHistory.filter { keep($0.seasonId) } + other.ratingHistory,
+            ratingHistory: history,
             events: mergedEvents,
-            rankings: (rankings ?? []).filter { keep($0.seasonId) } + (other.rankings ?? []),
-            awards: (awards ?? []).filter { keep($0.seasonId) } + (other.awards ?? []),
-            skills: (skills ?? []).filter { keep($0.seasonId) } + (other.skills ?? []),
+            rankings: standings,
+            awards: awarded,
+            skills: runs,
             seasonGrades: grades,
             modelVersion: other.modelVersion ?? modelVersion,
-            loadedSeasonIds: Array(Set(loadedSeasonIds ?? []).union(incoming)).sorted()
+            loadedSeasonIds: loaded,
+            program: other.program ?? program,
+            // The newer response knows whether a rating exists now.
+            ratingStatus: other.ratingStatus
         )
     }
 }

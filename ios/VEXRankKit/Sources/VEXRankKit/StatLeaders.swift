@@ -67,6 +67,23 @@ public struct StatCategory: Identifiable, Sendable, Hashable {
                      detail: "Official Event.VEX autonomous plus driver skills total.",
                      source: .skills, lowerIsBetter: false, fractionDigits: 0),
     ]
+
+    /// VEX IQ's leaderboards: skills only, since every other one is derived
+    /// from the rating, which IQ does not have yet. "Coding" is what IQ calls
+    /// the autonomous run.
+    public static let iq: [StatCategory] = [
+        StatCategory(id: "Combined skills", valueLabel: "Combined skills",
+                     detail: "Official Event.VEX driver plus autonomous coding total.",
+                     source: .skills, lowerIsBetter: false, fractionDigits: 0),
+        StatCategory(id: "Driver skills", valueLabel: "Driver skills",
+                     detail: "Official Event.VEX driver skills score.",
+                     source: .skills, lowerIsBetter: false, fractionDigits: 0),
+        StatCategory(id: "Coding skills", valueLabel: "Autonomous coding",
+                     detail: "Official Event.VEX autonomous coding skills score.",
+                     source: .skills, lowerIsBetter: false, fractionDigits: 0),
+    ]
+
+    public static func all(for program: Program) -> [StatCategory] { program.isIQ ? iq : all }
 }
 
 /// One row of a leaderboard, flattened so the view does not care whether the
@@ -149,7 +166,7 @@ public enum StatLeaders {
         case .skills:
             let value: (SkillsEntry) -> Double = {
                 switch category.id {
-                case "Auto skills": return Double($0.autoSkills)
+                case "Auto skills", "Coding skills": return Double($0.autoSkills)
                 case "Driver skills": return Double($0.driverSkills)
                 default: return Double($0.combinedSkills)
                 }

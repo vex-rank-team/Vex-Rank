@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,6 +24,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private val api = VexRankApi()
@@ -49,11 +51,14 @@ fun SearchField(value: String, placeholder: String, theme: VexTheme, onChange: (
 
 // MARK: - Rankings
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RankingsScreen(theme: VexTheme, onTheme: (VexTheme) -> Unit, onOpenTeam: (String) -> Unit) {
     var state by remember { mutableStateOf<Result<RankingsResponse>?>(null) }
     var filter by remember { mutableStateOf(RankingFilter()) }
     var reload by remember { mutableStateOf(0) }
+    var refreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(reload) {
         state = null
@@ -62,7 +67,7 @@ fun RankingsScreen(theme: VexTheme, onTheme: (VexTheme) -> Unit, onOpenTeam: (St
 
     ScreenScaffold("World ranking", theme, onTheme) { padding ->
         Box(Modifier.padding(padding)) {
-            val result = state
+            PhaseFade(state, ::phaseOf) { result ->
             when {
                 result == null -> Loading("Loading world ranking…", theme)
                 result.isFailure -> Failed(
@@ -98,17 +103,36 @@ fun RankingsScreen(theme: VexTheme, onTheme: (VexTheme) -> Unit, onOpenTeam: (St
                         Spacer(Modifier.height(10.dp))
                         Summary(shown, response, filter, theme)
                         HorizontalDivider(color = Color(0x14FFFFFF))
-                        LazyColumn {
-                            items(shown, key = { it.number }) { team ->
-                                RankingRow(team, theme) { onOpenTeam(team.number) }
-                                HorizontalDivider(color = Color(0x0FFFFFFF))
+                        // A pull keeps the table on screen and swaps the rows
+                        // in place; a failed refresh keeps the old ones.
+                        PullToRefreshBox(isRefreshing = refreshing, onRefresh = {
+                            scope.launch {
+                                refreshing = true
+                                runCatching { api.rankings(fresh = true) }
+                                    .onSuccess { state = Result.success(it) }
+                                refreshing = false
+                            }
+                        }) {
+                            LazyColumn(Modifier.fillMaxSize()) {
+                                items(shown, key = { it.number }) { team ->
+                                    RankingRow(team, theme) { onOpenTeam(team.number) }
+                                    HorizontalDivider(color = Color(0x0FFFFFFF))
+                                }
                             }
                         }
                     }
                 }
             }
+            }
         }
     }
+}
+
+/// Loading, failed or loaded, for `PhaseFade`.
+private fun phaseOf(result: Result<*>?): Int = when {
+    result == null -> 0
+    result.isFailure -> 1
+    else -> 2
 }
 
 @Composable
@@ -133,7 +157,7 @@ private fun SummaryItem(label: String, value: String, detail: String, modifier: 
     Column(modifier) {
         Text(label, fontSize = 11.sp, color = Color(0xFF8A94A3), maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(value, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFF2F4F8))
-        Text(detail, fontSize = 11.sp, color = Color(0xFF6B7484), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(detail, fontSize = 11.sp, color = Ink.subtle, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -152,7 +176,7 @@ private fun RankingRow(team: TeamRanking, theme: VexTheme, onClick: () -> Unit) 
             val record = team.record
             if (record != null) {
                 Text("$record · ${RankingFilter.regionOf(team) ?: "Unassigned"}",
-                    fontSize = 11.sp, color = Color(0xFF6B7484), maxLines = 1,
+                    fontSize = 11.sp, color = Ink.subtle, maxLines = 1,
                     overflow = TextOverflow.Ellipsis)
             }
         }
@@ -166,12 +190,15 @@ private fun RankingRow(team: TeamRanking, theme: VexTheme, onClick: () -> Unit) 
 
 // MARK: - Events
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventsScreen(theme: VexTheme, onTheme: (VexTheme) -> Unit, onOpenEvent: (String) -> Unit) {
     var state by remember { mutableStateOf<Result<EventsResponse>?>(null) }
     var query by remember { mutableStateOf("") }
     var upcomingOnly by remember { mutableStateOf(true) }
     var reload by remember { mutableStateOf(0) }
+    var refreshing by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(reload) {
         state = null
@@ -180,7 +207,7 @@ fun EventsScreen(theme: VexTheme, onTheme: (VexTheme) -> Unit, onOpenEvent: (Str
 
     ScreenScaffold("Events", theme, onTheme) { padding ->
         Box(Modifier.padding(padding)) {
-            val result = state
+            PhaseFade(state, ::phaseOf) { result ->
             when {
                 result == null -> Loading("Loading events…", theme)
                 result.isFailure -> Failed(
@@ -200,14 +227,32 @@ fun EventsScreen(theme: VexTheme, onTheme: (VexTheme) -> Unit, onOpenEvent: (Str
                             label = { if (it) "Upcoming" else "All" }) { upcomingOnly = it }
                         Spacer(Modifier.height(10.dp))
                         HorizontalDivider(color = Color(0x14FFFFFF))
-                        LazyColumn {
-                            items(shown, key = { it.id }) { event ->
-                                EventRow(event, theme) { onOpenEvent(event.id) }
-                                HorizontalDivider(color = Color(0x0FFFFFFF))
+                        PullToRefreshBox(isRefreshing = refreshing, onRefresh = {
+                            scope.launch {
+                                refreshing = true
+                                runCatching { api.events(fresh = true) }
+                                    .onSuccess { state = Result.success(it) }
+                                refreshing = false
+                            }
+                        }) {
+                            LazyColumn(Modifier.fillMaxSize()) {
+                                if (shown.isEmpty()) item {
+                                    // Says why the list is empty, rather than
+                                    // leaving a blank that reads as broken.
+                                    Text(if (needle.isEmpty()) "No upcoming events. Choose All to see past ones."
+                                        else "No events match \"$query\".",
+                                        fontSize = 14.sp, color = Ink.muted,
+                                        modifier = Modifier.padding(24.dp))
+                                }
+                                items(shown, key = { it.id }) { event ->
+                                    EventRow(event, theme) { onOpenEvent(event.id) }
+                                    HorizontalDivider(color = Color(0x0FFFFFFF))
+                                }
                             }
                         }
                     }
                 }
+            }
             }
         }
     }
@@ -229,7 +274,7 @@ private fun EventRow(event: VexEvent, theme: VexTheme, onClick: () -> Unit) {
         Text(event.name, fontSize = 15.sp, color = Color(0xFFF2F4F8), maxLines = 2,
             overflow = TextOverflow.Ellipsis)
         if (event.place.isNotEmpty()) {
-            Text(event.place, fontSize = 12.sp, color = Color(0xFF6B7484), maxLines = 1,
+            Text(event.place, fontSize = 12.sp, color = Ink.subtle, maxLines = 1,
                 overflow = TextOverflow.Ellipsis)
         }
     }
@@ -260,9 +305,10 @@ fun StatsScreen(theme: VexTheme, onTheme: (VexTheme) -> Unit, onOpenTeam: (Strin
 
     ScreenScaffold("Stat leaders", theme, onTheme) { padding ->
         Box(Modifier.padding(padding)) {
+            PhaseFade(loading to error, { (busy, failure) -> if (busy) 0 else if (failure != null) 1 else 2 }) { (busy, failure) ->
             when {
-                loading -> Loading("Loading leaderboards…", theme)
-                error != null -> Failed(error!!, theme) { reload++ }
+                busy -> Loading("Loading leaderboards…", theme)
+                failure != null -> Failed(failure, theme) { reload++ }
                 else -> {
                     val rows = StatLeaders.rank(category, teams, skills, country)
                     Column {
@@ -296,6 +342,7 @@ fun StatsScreen(theme: VexTheme, onTheme: (VexTheme) -> Unit, onOpenTeam: (Strin
                     }
                 }
             }
+            }
         }
     }
 }
@@ -313,7 +360,7 @@ private fun StatRow(position: Int, row: StatLeader, category: StatCategory,
             Text(row.number, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFF2F4F8))
             Text(row.name, fontSize = 13.sp, color = Color(0xFF8A94A3), maxLines = 1,
                 overflow = TextOverflow.Ellipsis)
-            Text("${row.context} · ${row.region}", fontSize = 11.sp, color = Color(0xFF6B7484),
+            Text("${row.context} · ${row.region}", fontSize = 11.sp, color = Ink.subtle,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Text(String.format("%.${category.fractionDigits}f", row.value),
@@ -419,7 +466,8 @@ fun TeamsScreen(theme: VexTheme, favourites: Favourites, onTheme: (VexTheme) -> 
                             )
                             LazyColumn {
                                 items(shown, key = { it.id }) { team ->
-                                    DirectoryRow(team, theme, favourites.contains(team.number)) { starring ->
+                                    DirectoryRow(team, theme, favourites.contains(team.number),
+                                        onOpen = { onOpenTeam(team.number) }) { starring ->
                                         if (starring) {
                                             favourites.add(FavouriteTeam(team.number, team.name))
                                         } else {
@@ -440,9 +488,12 @@ fun TeamsScreen(theme: VexTheme, favourites: Favourites, onTheme: (VexTheme) -> 
 
 @Composable
 private fun DirectoryRow(team: DirectoryTeam, theme: VexTheme, starred: Boolean,
-                         onStar: (Boolean) -> Unit) {
+                         onOpen: () -> Unit, onStar: (Boolean) -> Unit) {
     var isStarred by remember(team.id) { mutableStateOf(starred) }
-    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+    // The row opens the team, as every other team row does; it used to be
+    // inert, so a team found here could only be starred, never looked at.
+    Row(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(start = 16.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+        verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(team.number, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
@@ -451,7 +502,7 @@ private fun DirectoryRow(team: DirectoryTeam, theme: VexTheme, starred: Boolean,
                     Spacer(Modifier.width(8.dp))
                     // Otherwise a long-dead team reads as current.
                     Text("INACTIVE", fontSize = 9.sp, fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF6B7484))
+                        color = Ink.subtle)
                 }
             }
             if (!team.name.isNullOrBlank()) {
@@ -459,7 +510,7 @@ private fun DirectoryRow(team: DirectoryTeam, theme: VexTheme, starred: Boolean,
                     overflow = TextOverflow.Ellipsis)
             }
             Text(listOfNotNull(team.grade, team.place).filter { it.isNotBlank() }.joinToString(" · "),
-                fontSize = 11.sp, color = Color(0xFF6B7484), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                fontSize = 11.sp, color = Ink.subtle, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         IconButton(onClick = { isStarred = !isStarred; onStar(isStarred) }) {
             Icon(

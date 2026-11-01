@@ -1,0 +1,1482 @@
+[
+ {
+  "rank": 1,
+  "team": {
+   "id": 172267,
+   "program": "VIQRC",
+   "teamRegId": 440341,
+   "team": "7799B",
+   "teamName": "XF-TQTC_GAMER",
+   "organization": "上海童趣同创培训学校有限公司",
+   "city": "上海市",
+   "region": "Shanghai",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/7799B\" target=\"_blank\">7799B</a>",
+   "eventRegion": "China - East",
+   "affiliations": [],
+   "eventRegionId": 3748
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-5400",
+   "startDate": "2026-10-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 330,
+   "programming": 162,
+   "driver": 168,
+   "combinedStopTime": 0,
+   "maxProgramming": 162,
+   "maxDriver": 168,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-24 05:04:36",
+   "driverScoredAt": "2026-10-25 03:52:28"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 2,
+  "team": {
+   "id": 171978,
+   "program": "VIQRC",
+   "teamRegId": 439230,
+   "team": "10492X",
+   "teamName": "10492X",
+   "organization": "上海森码创智培训学校有限公司",
+   "city": "Shanghai",
+   "region": "Shanghai",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/10492X\" target=\"_blank\">10492X</a>",
+   "eventRegion": "China - East",
+   "affiliations": [],
+   "eventRegionId": 3748
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-5400",
+   "startDate": "2026-10-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 324,
+   "programming": 156,
+   "driver": 168,
+   "combinedStopTime": 0,
+   "maxProgramming": 156,
+   "maxDriver": 168,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-24 08:40:05",
+   "driverScoredAt": "2026-10-24 08:42:23"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 3,
+  "team": {
+   "id": 198025,
+   "program": "VIQRC",
+   "teamRegId": 439685,
+   "team": "8299X",
+   "teamName": "Super Mario",
+   "organization": "宁波浩泽科技",
+   "city": "宁波",
+   "region": "Zhejiang",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/8299X\" target=\"_blank\">8299X</a>",
+   "eventRegion": "China - East",
+   "affiliations": [],
+   "eventRegionId": 3748
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-5400",
+   "startDate": "2026-10-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 322,
+   "programming": 152,
+   "driver": 170,
+   "combinedStopTime": 0,
+   "maxProgramming": 152,
+   "maxDriver": 170,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-24 05:22:41",
+   "driverScoredAt": "2026-10-25 03:07:47"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 4,
+  "team": {
+   "id": 198036,
+   "program": "VIQRC",
+   "teamRegId": 439701,
+   "team": "9911W",
+   "teamName": "9911W",
+   "organization": "北京唐城嘉拓科技有限公司",
+   "city": "北京",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/9911W\" target=\"_blank\">9911W</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-66414",
+   "startDate": "2026-10-23",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 318,
+   "programming": 168,
+   "driver": 150,
+   "combinedStopTime": 0,
+   "maxProgramming": 168,
+   "maxDriver": 150,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-25 01:45:00",
+   "driverScoredAt": "2026-10-25 01:47:16"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 5,
+  "team": {
+   "id": 198892,
+   "program": "VIQRC",
+   "teamRegId": 442086,
+   "team": "8299Z",
+   "teamName": "hz",
+   "organization": "宁波浩泽科技",
+   "city": "宁波",
+   "region": "Zhejiang",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/8299Z\" target=\"_blank\">8299Z</a>",
+   "eventRegion": "China - East",
+   "affiliations": [],
+   "eventRegionId": 3748
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-4369",
+   "startDate": "2026-08-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 316,
+   "programming": 164,
+   "driver": 152,
+   "combinedStopTime": 0,
+   "maxProgramming": 164,
+   "maxDriver": 152,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-08-25 08:05:58",
+   "driverScoredAt": "2026-08-26 07:18:28"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 6,
+  "team": {
+   "id": 171610,
+   "program": "VIQRC",
+   "teamRegId": 438783,
+   "team": "98511D",
+   "teamName": "全球学D队",
+   "organization": "北京黄绿红户外运动俱乐部有限公司",
+   "city": "北京城区",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/98511D\" target=\"_blank\">98511D</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-66414",
+   "startDate": "2026-10-23",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 314,
+   "programming": 150,
+   "driver": 164,
+   "combinedStopTime": 0,
+   "maxProgramming": 150,
+   "maxDriver": 164,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-25 03:16:13",
+   "driverScoredAt": "2026-10-25 02:11:52"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 7,
+  "team": {
+   "id": 199065,
+   "program": "VIQRC",
+   "teamRegId": 442705,
+   "team": "98788E",
+   "teamName": "98788E",
+   "organization": "北京全球学教育咨询有限公司",
+   "city": "北京",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/98788E\" target=\"_blank\">98788E</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-65769",
+   "startDate": "2026-10-04",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 312,
+   "programming": 138,
+   "driver": 174,
+   "combinedStopTime": 0,
+   "maxProgramming": 138,
+   "maxDriver": 174,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-05 06:14:08",
+   "driverScoredAt": "2026-10-05 08:50:26"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 8,
+  "team": {
+   "id": 186274,
+   "program": "VIQRC",
+   "teamRegId": 440396,
+   "team": "8988P",
+   "teamName": "Penguin",
+   "organization": "Penguin",
+   "city": "Shanghai",
+   "region": "Shanghai",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/8988P\" target=\"_blank\">8988P</a>",
+   "eventRegion": "China - East",
+   "affiliations": [],
+   "eventRegionId": 3748
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-5400",
+   "startDate": "2026-10-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 310,
+   "programming": 146,
+   "driver": 164,
+   "combinedStopTime": 0,
+   "maxProgramming": 146,
+   "maxDriver": 164,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-24 08:46:31",
+   "driverScoredAt": "2026-10-24 08:49:17"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 9,
+  "team": {
+   "id": 186151,
+   "program": "VIQRC",
+   "teamRegId": 437489,
+   "team": "765A",
+   "teamName": "RoboHive",
+   "organization": "RoboHive（北京蜂巢时代教育科技有限公司）",
+   "city": "Beijing",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/765A\" target=\"_blank\">765A</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-4395",
+   "startDate": "2026-08-03",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 309,
+   "programming": 156,
+   "driver": 153,
+   "combinedStopTime": 0,
+   "maxProgramming": 156,
+   "maxDriver": 153,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-08-05 04:33:03",
+   "driverScoredAt": "2026-08-04 10:19:25"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 10,
+  "team": {
+   "id": 201278,
+   "program": "VIQRC",
+   "teamRegId": 451592,
+   "team": "8077C",
+   "teamName": "8077C",
+   "organization": "北京景澜智创科技有限公司",
+   "city": "北京",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/8077C\" target=\"_blank\">8077C</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-65769",
+   "startDate": "2026-10-04",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 306,
+   "programming": 144,
+   "driver": 162,
+   "combinedStopTime": 0,
+   "maxProgramming": 144,
+   "maxDriver": 162,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-05 05:43:34",
+   "driverScoredAt": "2026-10-06 02:42:34"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 11,
+  "team": {
+   "id": 171602,
+   "program": "VIQRC",
+   "teamRegId": 438773,
+   "team": "683A",
+   "teamName": "RoboHive",
+   "organization": "RoboHive（北京蜂巢时代教育科技有限公司）",
+   "city": "Beijing",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/683A\" target=\"_blank\">683A</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-4395",
+   "startDate": "2026-08-03",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 304,
+   "programming": 156,
+   "driver": 148,
+   "combinedStopTime": 0,
+   "maxProgramming": 156,
+   "maxDriver": 148,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-08-04 06:19:21",
+   "driverScoredAt": "2026-08-05 02:36:34"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 12,
+  "team": {
+   "id": 186462,
+   "program": "VIQRC",
+   "teamRegId": 438575,
+   "team": "1077A",
+   "teamName": "Big Lion",
+   "organization": "北京市朝阳区赫德学校",
+   "city": "北京",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/1077A\" target=\"_blank\">1077A</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-4395",
+   "startDate": "2026-08-03",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 298,
+   "programming": 150,
+   "driver": 148,
+   "combinedStopTime": 0,
+   "maxProgramming": 150,
+   "maxDriver": 156,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-08-05 07:34:43",
+   "driverScoredAt": "2026-10-25 01:47:53"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 13,
+  "team": {
+   "id": 196982,
+   "program": "VIQRC",
+   "teamRegId": 435814,
+   "team": "75163A",
+   "teamName": "Bob the good bob is good",
+   "organization": "Alto Lab",
+   "city": "Palo Alto",
+   "region": "California",
+   "country": "United States",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/75163A\" target=\"_blank\">75163A</a>",
+   "eventRegion": "California - North",
+   "affiliations": [],
+   "eventRegionId": 2362
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-5363",
+   "startDate": "2026-10-25",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 296,
+   "programming": 156,
+   "driver": 140,
+   "combinedStopTime": 0,
+   "maxProgramming": 156,
+   "maxDriver": 140,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-25 18:22:30",
+   "driverScoredAt": "2026-10-25 21:22:12"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 14,
+  "team": {
+   "id": 186479,
+   "program": "VIQRC",
+   "teamRegId": 438576,
+   "team": "1077C",
+   "teamName": "Creeper",
+   "organization": "北京市朝阳区赫德学校",
+   "city": "北京",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/1077C\" target=\"_blank\">1077C</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-66414",
+   "startDate": "2026-10-23",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 294,
+   "programming": 156,
+   "driver": 138,
+   "combinedStopTime": 0,
+   "maxProgramming": 156,
+   "maxDriver": 146,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-24 08:16:06",
+   "driverScoredAt": "2026-08-04 09:02:08"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 15,
+  "team": {
+   "id": 189373,
+   "program": "VIQRC",
+   "teamRegId": 444203,
+   "team": "139A",
+   "teamName": "139A",
+   "organization": "中国农业科学院附属小学",
+   "city": "北京",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/139A\" target=\"_blank\">139A</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-66414",
+   "startDate": "2026-10-23",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 294,
+   "programming": 132,
+   "driver": 162,
+   "combinedStopTime": 0,
+   "maxProgramming": 132,
+   "maxDriver": 162,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-24 07:00:37",
+   "driverScoredAt": "2026-10-24 07:03:22"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 16,
+  "team": {
+   "id": 198081,
+   "program": "VIQRC",
+   "teamRegId": 439869,
+   "team": "2349B",
+   "teamName": "2349B",
+   "organization": "北京智创星动教育科技有限公司",
+   "city": "北京市",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/2349B\" target=\"_blank\">2349B</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-66000",
+   "startDate": "2026-10-05",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 288,
+   "programming": 156,
+   "driver": 132,
+   "combinedStopTime": 0,
+   "maxProgramming": 156,
+   "maxDriver": 132,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-06 02:34:18",
+   "driverScoredAt": "2026-10-06 02:36:49"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 17,
+  "team": {
+   "id": 197917,
+   "program": "VIQRC",
+   "teamRegId": 439384,
+   "team": "8699A",
+   "teamName": "8699A",
+   "organization": "青岛市崂山区实验学校",
+   "city": "青岛市",
+   "region": "Shandong",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/8699A\" target=\"_blank\">8699A</a>",
+   "eventRegion": "China - Middle",
+   "affiliations": [],
+   "eventRegionId": 3749
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-4395",
+   "startDate": "2026-08-03",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 288,
+   "programming": 144,
+   "driver": 144,
+   "combinedStopTime": 0,
+   "maxProgramming": 144,
+   "maxDriver": 144,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-08-05 02:05:30",
+   "driverScoredAt": "2026-08-05 02:08:03"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 18,
+  "team": {
+   "id": 186385,
+   "program": "VIQRC",
+   "teamRegId": 440322,
+   "team": "58051A",
+   "teamName": "杭州二中白马湖教育集团",
+   "organization": "杭州二中白马湖教育集团",
+   "city": "杭州",
+   "region": "Zhejiang",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/58051A\" target=\"_blank\">58051A</a>",
+   "eventRegion": "China - East",
+   "affiliations": [],
+   "eventRegionId": 3748
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-4369",
+   "startDate": "2026-08-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 288,
+   "programming": 132,
+   "driver": 156,
+   "combinedStopTime": 0,
+   "maxProgramming": 132,
+   "maxDriver": 156,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-08-26 05:01:45",
+   "driverScoredAt": "2026-08-26 05:05:38"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 19,
+  "team": {
+   "id": 171976,
+   "program": "VIQRC",
+   "teamRegId": 442791,
+   "team": "10492T",
+   "teamName": "魅迪战队",
+   "organization": "上海魅迪教育科技有限公司",
+   "city": "上海",
+   "region": "Shanghai",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/10492T\" target=\"_blank\">10492T</a>",
+   "eventRegion": "China - East",
+   "affiliations": [],
+   "eventRegionId": 3748
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-5400",
+   "startDate": "2026-10-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 288,
+   "programming": 132,
+   "driver": 156,
+   "combinedStopTime": 0,
+   "maxProgramming": 132,
+   "maxDriver": 156,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-24 05:19:53",
+   "driverScoredAt": "2026-10-24 08:15:22"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 20,
+  "team": {
+   "id": 186911,
+   "program": "VIQRC",
+   "teamRegId": 442845,
+   "team": "85556B",
+   "teamName": "上海森码创智培训学校",
+   "organization": "上海森码创智培训学校",
+   "city": "Shanghai",
+   "region": "Shanghai",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/85556B\" target=\"_blank\">85556B</a>",
+   "eventRegion": "China - East",
+   "affiliations": [],
+   "eventRegionId": 3748
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-5400",
+   "startDate": "2026-10-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 288,
+   "programming": 132,
+   "driver": 156,
+   "combinedStopTime": 0,
+   "maxProgramming": 132,
+   "maxDriver": 156,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-24 09:23:32",
+   "driverScoredAt": "2026-10-24 03:46:01"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 21,
+  "team": {
+   "id": 186239,
+   "program": "VIQRC",
+   "teamRegId": 438923,
+   "team": "86995C",
+   "teamName": "86995C",
+   "organization": "北京乐高创美教育科技有限公司",
+   "city": "北京",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/86995C\" target=\"_blank\">86995C</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-65769",
+   "startDate": "2026-10-04",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 284,
+   "programming": 144,
+   "driver": 140,
+   "combinedStopTime": 0,
+   "maxProgramming": 144,
+   "maxDriver": 140,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-05 06:41:21",
+   "driverScoredAt": "2026-10-05 08:27:45"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 22,
+  "team": {
+   "id": 171598,
+   "program": "VIQRC",
+   "teamRegId": 438778,
+   "team": "662A",
+   "teamName": "RoboHive",
+   "organization": "RoboHive（北京蜂巢时代教育科技有限公司）",
+   "city": "北京",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/662A\" target=\"_blank\">662A</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-4369",
+   "startDate": "2026-08-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 282,
+   "programming": 139,
+   "driver": 143,
+   "combinedStopTime": 0,
+   "maxProgramming": 150,
+   "maxDriver": 143,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-08-05 06:15:36",
+   "driverScoredAt": "2026-08-26 03:43:55"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 23,
+  "team": {
+   "id": 198883,
+   "program": "VIQRC",
+   "teamRegId": 442046,
+   "team": "7377H",
+   "teamName": "Hurricane",
+   "organization": "成都高新区浣熊教育咨询工作室",
+   "city": "成都",
+   "region": "Sichuan",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/7377H\" target=\"_blank\">7377H</a>",
+   "eventRegion": "China - West",
+   "affiliations": [],
+   "eventRegionId": 3752
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-4369",
+   "startDate": "2026-08-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 282,
+   "programming": 144,
+   "driver": 138,
+   "combinedStopTime": 0,
+   "maxProgramming": 144,
+   "maxDriver": 138,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-08-25 09:18:30",
+   "driverScoredAt": "2026-08-26 02:25:36"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 24,
+  "team": {
+   "id": 197920,
+   "program": "VIQRC",
+   "teamRegId": 439387,
+   "team": "8883A",
+   "teamName": "Qingdao Zhenjiang Road Primary School",
+   "organization": "青岛镇江路小学",
+   "city": "青岛",
+   "region": "Shandong",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/8883A\" target=\"_blank\">8883A</a>",
+   "eventRegion": "China - Middle",
+   "affiliations": [],
+   "eventRegionId": 3749
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-4395",
+   "startDate": "2026-08-03",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 282,
+   "programming": 138,
+   "driver": 144,
+   "combinedStopTime": 0,
+   "maxProgramming": 138,
+   "maxDriver": 144,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-08-05 06:50:09",
+   "driverScoredAt": "2026-08-04 10:00:13"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 25,
+  "team": {
+   "id": 199142,
+   "program": "VIQRC",
+   "teamRegId": 442976,
+   "team": "62121A",
+   "teamName": "62121A",
+   "organization": "Matrix",
+   "city": "上海",
+   "region": "Shanghai",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/62121A\" target=\"_blank\">62121A</a>",
+   "eventRegion": "China - East",
+   "affiliations": [],
+   "eventRegionId": 3748
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-5400",
+   "startDate": "2026-10-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 282,
+   "programming": 136,
+   "driver": 146,
+   "combinedStopTime": 0,
+   "maxProgramming": 136,
+   "maxDriver": 146,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-24 05:55:45",
+   "driverScoredAt": "2026-10-24 05:53:06"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 26,
+  "team": {
+   "id": 199490,
+   "program": "VIQRC",
+   "teamRegId": 444298,
+   "team": "662V",
+   "teamName": "RoboHive",
+   "organization": "RoboHive（北京蜂巢时代教育科技有限公司）",
+   "city": "北京",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/662V\" target=\"_blank\">662V</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-66000",
+   "startDate": "2026-10-05",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 282,
+   "programming": 126,
+   "driver": 156,
+   "combinedStopTime": 0,
+   "maxProgramming": 126,
+   "maxDriver": 156,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-06 03:02:24",
+   "driverScoredAt": "2026-10-05 02:32:47"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 27,
+  "team": {
+   "id": 198034,
+   "program": "VIQRC",
+   "teamRegId": 439698,
+   "team": "5333X",
+   "teamName": "5333X",
+   "organization": "北京匠造王国智能科技有限公司",
+   "city": "北京",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/5333X\" target=\"_blank\">5333X</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-4395",
+   "startDate": "2026-08-03",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 276,
+   "programming": 144,
+   "driver": 132,
+   "combinedStopTime": 0,
+   "maxProgramming": 144,
+   "maxDriver": 135,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-08-04 09:53:53",
+   "driverScoredAt": "2026-10-06 03:12:19"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 28,
+  "team": {
+   "id": 172265,
+   "program": "VIQRC",
+   "teamRegId": 440488,
+   "team": "7799A",
+   "teamName": "XF-TQTC_Rising Stars",
+   "organization": "上海童趣同创培训学校有限公司",
+   "city": "上海市",
+   "region": "Shanghai",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/7799A\" target=\"_blank\">7799A</a>",
+   "eventRegion": "China - East",
+   "affiliations": [],
+   "eventRegionId": 3748
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-5400",
+   "startDate": "2026-10-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 276,
+   "programming": 144,
+   "driver": 132,
+   "combinedStopTime": 0,
+   "maxProgramming": 144,
+   "maxDriver": 132,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-25 03:21:48",
+   "driverScoredAt": "2026-10-24 06:29:11"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 29,
+  "team": {
+   "id": 186112,
+   "program": "VIQRC",
+   "teamRegId": 439694,
+   "team": "99130J",
+   "teamName": "99130J",
+   "organization": "北京唐城嘉拓科技有限公司",
+   "city": "北京市",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/99130J\" target=\"_blank\">99130J</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-66414",
+   "startDate": "2026-10-23",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 276,
+   "programming": 120,
+   "driver": 156,
+   "combinedStopTime": 0,
+   "maxProgramming": 124,
+   "maxDriver": 156,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-05 02:36:24",
+   "driverScoredAt": "2026-10-25 01:37:57"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 30,
+  "team": {
+   "id": 172777,
+   "program": "VIQRC",
+   "teamRegId": 452597,
+   "team": "36688C",
+   "teamName": "BASIS Bilingual School Shenzhen",
+   "organization": "深圳市福田区星之朗教育培训中心有限公司",
+   "city": "Shenzhen",
+   "region": "Guangdong",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/36688C\" target=\"_blank\">36688C</a>",
+   "eventRegion": "China - South",
+   "affiliations": [],
+   "eventRegionId": 3751
+  },
+  "event": {
+   "sku": "VE-IQ-26-65732",
+   "startDate": "2026-10-05",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 276,
+   "programming": 120,
+   "driver": 156,
+   "combinedStopTime": 0,
+   "maxProgramming": 120,
+   "maxDriver": 156,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-06 03:44:02",
+   "driverScoredAt": "2026-10-06 03:41:03"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 31,
+  "team": {
+   "id": 186111,
+   "program": "VIQRC",
+   "teamRegId": 439695,
+   "team": "99130W",
+   "teamName": "99130W",
+   "organization": "北京唐城嘉拓科技有限公司",
+   "city": "北京市",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/99130W\" target=\"_blank\">99130W</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-66000",
+   "startDate": "2026-10-05",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 266,
+   "programming": 128,
+   "driver": 138,
+   "combinedStopTime": 0,
+   "maxProgramming": 128,
+   "maxDriver": 138,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-06 03:11:36",
+   "driverScoredAt": "2026-10-05 03:43:09"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 32,
+  "team": {
+   "id": 199039,
+   "program": "VIQRC",
+   "teamRegId": 442614,
+   "team": "81066M",
+   "teamName": "一飞冲天",
+   "organization": "上海索越智爱培训学校有限公司",
+   "city": "上海市",
+   "region": "Shanghai",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/81066M\" target=\"_blank\">81066M</a>",
+   "eventRegion": "China - East",
+   "affiliations": [],
+   "eventRegionId": 3748
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-5400",
+   "startDate": "2026-10-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 264,
+   "programming": 126,
+   "driver": 138,
+   "combinedStopTime": 0,
+   "maxProgramming": 126,
+   "maxDriver": 138,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-24 05:29:50",
+   "driverScoredAt": "2026-10-24 05:27:36"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 33,
+  "team": {
+   "id": 198295,
+   "program": "VIQRC",
+   "teamRegId": 440353,
+   "team": "25800X",
+   "teamName": "Y Boy ",
+   "organization": "北京第二实验小学玉桃园分校",
+   "city": "北京",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/25800X\" target=\"_blank\">25800X</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-66000",
+   "startDate": "2026-10-05",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 264,
+   "programming": 120,
+   "driver": 144,
+   "combinedStopTime": 18,
+   "maxProgramming": 120,
+   "maxDriver": 144,
+   "progStopTime": 18,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-06 02:35:47",
+   "driverScoredAt": "2026-10-06 02:37:56"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 34,
+  "team": {
+   "id": 198349,
+   "program": "VIQRC",
+   "teamRegId": 440497,
+   "team": "2428A",
+   "teamName": "2428A",
+   "organization": "Team 2428A",
+   "city": "上海市",
+   "region": "Shanghai",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/2428A\" target=\"_blank\">2428A</a>",
+   "eventRegion": "China - East",
+   "affiliations": [],
+   "eventRegionId": 3748
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-5400",
+   "startDate": "2026-10-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 264,
+   "programming": 88,
+   "driver": 176,
+   "combinedStopTime": 0,
+   "maxProgramming": 88,
+   "maxDriver": 176,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-25 02:50:12",
+   "driverScoredAt": "2026-10-24 04:00:27"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 35,
+  "team": {
+   "id": 186015,
+   "program": "VIQRC",
+   "teamRegId": 440480,
+   "team": "618X",
+   "teamName": "XRaccoon",
+   "organization": "RobotStudio",
+   "city": "Shanghai",
+   "region": "Shanghai",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/618X\" target=\"_blank\">618X</a>",
+   "eventRegion": "China - East",
+   "affiliations": [],
+   "eventRegionId": 3748
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-4369",
+   "startDate": "2026-08-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 262,
+   "programming": 166,
+   "driver": 96,
+   "combinedStopTime": 0,
+   "maxProgramming": 166,
+   "maxDriver": 96,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-08-26 01:35:44",
+   "driverScoredAt": "2026-08-25 05:46:35"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 36,
+  "team": {
+   "id": 198891,
+   "program": "VIQRC",
+   "teamRegId": 442085,
+   "team": "8299Y",
+   "teamName": "Super Luigi",
+   "organization": "宁波浩泽科技",
+   "city": "宁波",
+   "region": "Zhejiang",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/8299Y\" target=\"_blank\">8299Y</a>",
+   "eventRegion": "China - East",
+   "affiliations": [],
+   "eventRegionId": 3748
+  },
+  "event": {
+   "sku": "RE-VIQRC-26-5400",
+   "startDate": "2026-10-24",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 260,
+   "programming": 176,
+   "driver": 84,
+   "combinedStopTime": 0,
+   "maxProgramming": 176,
+   "maxDriver": 136,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-24 07:01:26",
+   "driverScoredAt": "2026-08-26 06:05:33"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 37,
+  "team": {
+   "id": 198694,
+   "program": "VIQRC",
+   "teamRegId": 441483,
+   "team": "21159Z",
+   "teamName": "CHAMPLANNING",
+   "organization": "北京辰星睿达西直门中心",
+   "city": "Beijing",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/21159Z\" target=\"_blank\">21159Z</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-65769",
+   "startDate": "2026-10-04",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 258,
+   "programming": 138,
+   "driver": 120,
+   "combinedStopTime": 0,
+   "maxProgramming": 138,
+   "maxDriver": 120,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-06 08:41:31",
+   "driverScoredAt": "2026-10-06 01:52:19"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 38,
+  "team": {
+   "id": 199484,
+   "program": "VIQRC",
+   "teamRegId": 444290,
+   "team": "1076A",
+   "teamName": "育翔小学",
+   "organization": "北京市育翔小学",
+   "city": "北京市",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/1076A\" target=\"_blank\">1076A</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-65769",
+   "startDate": "2026-10-04",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 258,
+   "programming": 132,
+   "driver": 126,
+   "combinedStopTime": 0,
+   "maxProgramming": 132,
+   "maxDriver": 126,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-06 03:19:05",
+   "driverScoredAt": "2026-10-06 06:18:31"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 39,
+  "team": {
+   "id": 199066,
+   "program": "VIQRC",
+   "teamRegId": 442706,
+   "team": "98788F",
+   "teamName": "98788F",
+   "organization": "北京全球学教育咨询有限公司",
+   "city": "北京",
+   "region": "Beijing",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/98788F\" target=\"_blank\">98788F</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-65769",
+   "startDate": "2026-10-04",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 256,
+   "programming": 146,
+   "driver": 110,
+   "combinedStopTime": 0,
+   "maxProgramming": 146,
+   "maxDriver": 110,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-06 08:23:53",
+   "driverScoredAt": "2026-10-06 03:31:11"
+  },
+  "eligible": false
+ },
+ {
+  "rank": 40,
+  "team": {
+   "id": 185104,
+   "program": "VIQRC",
+   "teamRegId": 438012,
+   "team": "69777V",
+   "teamName": "Magic-dreamteam",
+   "organization": "哈尔滨魔力AI科学探索中心",
+   "city": "哈尔滨",
+   "region": "Heilongjiang",
+   "country": "China",
+   "gradeLevel": "Elementary",
+   "link": "<a href=\"https://events.vex.com/teams/VIQRC/69777V\" target=\"_blank\">69777V</a>",
+   "eventRegion": "China - North",
+   "affiliations": [],
+   "eventRegionId": 3750
+  },
+  "event": {
+   "sku": "VE-IQ-26-65769",
+   "startDate": "2026-10-04",
+   "seasonName": "VEX IQ Robotics Competition 2026-2027: Level Up"
+  },
+  "scores": {
+   "score": 256,
+   "programming": 138,
+   "driver": 118,
+   "combinedStopTime": 0,
+   "maxProgramming": 138,
+   "maxDriver": 118,
+   "progStopTime": 0,
+   "driverStopTime": 0,
+   "progScoredAt": "2026-10-05 06:51:38",
+   "driverScoredAt": "2026-10-06 01:34:17"
+  },
+  "eligible": false
+ }
+]

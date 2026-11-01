@@ -49,6 +49,12 @@ build_files.append(f'\t\t{ids["packageBuildFile"]} /* VEXRankKit in Frameworks *
 # local package is declared but never located.
 file_refs.append(f'\t\t{oid("file:package")} /* VEXRankKit */ = {{isa = PBXFileReference; lastKnownFileType = wrapper; name = VEXRankKit; path = VEXRankKit; sourceTree = "<group>"; }};')
 group_children.append(f'\t\t\t\t{oid("file:package")} /* VEXRankKit */,')
+# Build settings that live in a file, so a local-only one (the events.vex
+# token, in the git-ignored Secrets.xcconfig) can be included without editing
+# the project. See App/Config/Base.xcconfig.
+base_config = oid("file:App/Config/Base.xcconfig")
+file_refs.append(f'\t\t{base_config} /* Base.xcconfig */ = {{isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Base.xcconfig; path = "App/Config/Base.xcconfig"; sourceTree = "<group>"; }};')
+group_children.append(f'\t\t\t\t{base_config} /* Base.xcconfig */,')
 
 SETTINGS_TARGET = f'''
 \t\t\t\tASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
@@ -56,6 +62,7 @@ SETTINGS_TARGET = f'''
 \t\t\t\tCURRENT_PROJECT_VERSION = 4;
 \t\t\t\tDEVELOPMENT_TEAM = {TEAM};
 \t\t\t\tGENERATE_INFOPLIST_FILE = YES;
+\t\t\t\tINFOPLIST_FILE = App/Info.plist;
 \t\t\t\tINFOPLIST_KEY_CFBundleDisplayName = "Makapaka Scout";
 \t\t\t\tINFOPLIST_KEY_CFBundleName = "Makapaka Scout";\n\t\t\t\tINFOPLIST_KEY_UILaunchScreen_Generation = YES;\n\t\t\t\tINFOPLIST_KEY_UILaunchScreen_BackgroundColor = LaunchBackground;
 \t\t\t\tINFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -197,11 +204,13 @@ pbx = f'''// !$*UTF8*$!
 \t\t}};
 \t\t{ids["debugTarget"]} /* Debug */ = {{
 \t\t\tisa = XCBuildConfiguration;
+\t\t\tbaseConfigurationReference = {base_config} /* Base.xcconfig */;
 \t\t\tbuildSettings = {{{SETTINGS_TARGET}\t\t\t}};
 \t\t\tname = Debug;
 \t\t}};
 \t\t{ids["releaseTarget"]} /* Release */ = {{
 \t\t\tisa = XCBuildConfiguration;
+\t\t\tbaseConfigurationReference = {base_config} /* Base.xcconfig */;
 \t\t\tbuildSettings = {{{SETTINGS_TARGET}\t\t\t}};
 \t\t\tname = Release;
 \t\t}};

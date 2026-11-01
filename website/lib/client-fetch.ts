@@ -8,7 +8,15 @@ export function assetUrl(path:string) {
 }
 
 /** Separate API and asset origins for GitHub Pages; keep same-origin hosting working. */
-export function siteFetch(path:string, init?:RequestInit) {
+export async function siteFetch(path:string, init?:RequestInit) {
+  // Team profiles come from events.vex directly when the build has a token,
+  // and from the Worker otherwise or whenever that fails. Loaded on demand so
+  // the profile builder stays out of the first page load.
+  if(path.startsWith('/api/teams/')){
+    const { directTeamProfile }=await import('./direct-profile');
+    const direct=await directTeamProfile(path);
+    if(direct)return direct;
+  }
   // Build-time constants: the API can live on a Worker while assets live beneath
   // a GitHub Pages repository path. Undefined constants support same-origin dev.
   const apiBase=typeof __VEX_API_BASE__==='undefined'?'':__VEX_API_BASE__;

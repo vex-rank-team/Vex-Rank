@@ -22,6 +22,8 @@ public enum OfficialLinks {
     /// A team's page. Numbers are uppercased because the site's paths are, and
     /// percent-encoded in case a number ever carries something unexpected.
     public static func team(_ number: String, program: String = OfficialLinks.program) -> URL? {
+        // The site's team paths use the program code: /teams/V5RC/252H,
+        // /teams/VIQRC/86995D (seen in the skills feed's own links).
         let trimmed = number.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         guard !trimmed.isEmpty,
               let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed)

@@ -115,7 +115,7 @@ struct MatchDetailView: View {
                                 .font(.system(size: 14, weight: .semibold, design: .rounded))
                             Image(systemName: "chevron.right")
                                 .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(.tertiary)
+                                .foregroundStyle(.subtle)
                         }
                         .padding(.horizontal, 10).padding(.vertical, 6)
                         .background(theme.surfaceRaised, in: Capsule())
@@ -123,7 +123,7 @@ struct MatchDetailView: View {
                     .buttonStyle(.plain)
                 }
                 if numbers.isEmpty {
-                    Text("Not posted").font(.caption).foregroundStyle(.tertiary)
+                    Text("Not posted").font(.caption).foregroundStyle(.subtle)
                 }
             }
         }

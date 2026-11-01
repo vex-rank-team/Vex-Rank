@@ -25,10 +25,14 @@ jobs:
         run: node --test tests/data-regressions.test.mjs tests/team-directory.test.mjs
         working-directory: website
       - name: Verify test API is deployed
-        run: curl --fail --retry 2 https://vexrank-api-test.vexrank-eason.workers.dev/api/health
+        run: curl --fail --retry 2 https://vexrank-api-test.qiansteven54.workers.dev/api/health
       - name: Build test website
         run: pnpm exec vite build --config vite.pages.config.ts
         working-directory: website
+        # Optional. When set, the site reads team profiles from events.vex
+        # itself; when not, through the Worker.
+        env:
+          VEX_DIRECT_TOKEN: ${{ secrets.VEX_DIRECT_TOKEN }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: website/dist-pages

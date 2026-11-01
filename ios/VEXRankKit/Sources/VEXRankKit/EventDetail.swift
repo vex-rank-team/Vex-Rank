@@ -15,6 +15,8 @@ public struct EventDetail: Codable, Sendable {
     public let start: String?
     public let end: String?
     public let location: EventLocation?
+    /// Which program the event belongs to; VEX IQ is id 41.
+    public let program: EventProgram?
     /// The API's own link to the event on the official site.
     public let officialUrl: String?
 
@@ -29,6 +31,11 @@ public struct EventDetail: Codable, Sendable {
             .compactMap { $0?.isEmpty == false ? $0 : nil }
             .joined(separator: ", ")
     }
+}
+
+public struct EventProgram: Codable, Sendable, Hashable {
+    public let id: Int?
+    public let code: String?
 }
 
 public struct EventLocation: Codable, Sendable {
@@ -63,6 +70,8 @@ public struct DivisionRanking: Codable, Sendable, Identifiable, Hashable {
     public let ap: Int?
     public let sp: Int?
     public let highScore: Int?
+    /// VEX IQ's average teamwork score, when the server passes it through.
+    public let averagePoints: Double?
 
     public var id: Int { team.id }
     public var record: String { "\(wins)–\(losses)–\(ties)" }

@@ -64,7 +64,7 @@ struct EventDetailView: View {
                 let divisions = selected.map { detail.divisions(for: $0) } ?? []
                 let division = divisions.first { $0.id == divisionID } ?? divisions.first
 
-                controls(tabs: tabs, selected: selected, divisions: divisions, division: division)
+                controls(tabs: tabs, selected: selected, divisions: divisions, division: division, isIQ: detail.isIQ)
                 Divider()
                 list(detail, tab: selected, division: division)
             } else {
@@ -95,28 +95,13 @@ struct EventDetailView: View {
     // MARK: - Controls
 
     private func controls(tabs: [EventSection], selected: EventSection?,
-                          divisions: [Division], division: Division?) -> some View {
+                          divisions: [Division], division: Division?, isIQ: Bool) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(tabs) { option in
-                        Button {
-                            tab = option
-                            // The chosen division may not exist under the new
-                            // tab; let it fall back rather than showing blank.
-                            divisionID = nil
-                        } label: {
-                            Text(option.rawValue)
-                                .font(.footnote.weight(.semibold))
-                                .padding(.horizontal, 14).padding(.vertical, 7)
-                                .background(option == selected ? theme.accent : theme.surface)
-                                .foregroundStyle(option == selected ? Color.white : Color.secondary)
-                                .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 16)
+            ChipBar(tabs, selected: selected, label: \.rawValue) { option in
+                tab = option
+                // The chosen division may not exist under the new tab; let it
+                // fall back rather than showing blank.
+                divisionID = nil
             }
 
             HStack(spacing: 14) {
@@ -133,7 +118,8 @@ struct EventDetailView: View {
                     .tint(theme.accent)
                 }
 
-                if selected == .rankings, let division {
+                // V5 only: the other orders are fitted ratings, which need an opponent.
+                if selected == .rankings, !isIQ, let division {
                     let sorts = model.sorts(for: division)
                     Menu {
                         ForEach(sorts) { option in
@@ -158,7 +144,8 @@ struct EventDetailView: View {
             }
             .padding(.horizontal, 16)
         }
-        .padding(.vertical, 10)
+        .padding(.top, 4)
+        .padding(.bottom, 10)
     }
 
     // MARK: - Content
@@ -238,7 +225,7 @@ struct EventDetailView: View {
     private func content(_ detail: EventDetailResponse, tab: EventSection?, division: Division?) -> some View {
         switch tab {
         case .rankings:
-            if let division { standings(division) }
+            if let division, detail.isIQ { iqStandings(division) } else if let division { standings(division) }
         case .bracket:
             if let division {
                 Section("Elimination bracket") {
@@ -251,14 +238,16 @@ struct EventDetailView: View {
                 .listRowBackground(theme.surface)
             }
         case .matches:
-            if let division {
+            if let division, detail.isIQ {
+                iqMatchSection(division)
+            } else if let division {
                 matchSection("Qualification", division.qualification, key: "qual-\(division.id)")
                 matchSection("Elimination", division.elimination, key: "elim-\(division.id)")
             }
         case .awards:
             awards(detail)
         case .skills:
-            skills(detail)
+            skills(detail, codingLabel: detail.isIQ ? "coding" : "auto")
         case .teams:
             teams(detail)
         case .none:
@@ -309,10 +298,79 @@ struct EventDetailView: View {
             revealButton(total: all.count, key: key, noun: "teams")
             if ratings.isProvisional && !ratings.isEmpty {
                 Text("OPR, DPR and CCWM are provisional - only \(String(format: "%.1f", ratings.appearances)) matches per team so far.")
-                    .font(.caption2).foregroundStyle(.tertiary)
+                    .font(.caption2).foregroundStyle(.subtle)
             }
         }
         .listRowBackground(theme.surface)
+    }
+
+    /// VEX IQ standings: the event's rank, then average and high teamwork
+    /// score. No record or WP/AP/SP - all zero for IQ - and no fitted ratings.
+    private func iqStandings(_ division: Division) -> some View {
+        let all = division.iqStandings.filter { matches($0.number) }
+        let key = "division-\(division.id)"
+        return Section {
+            ForEach(visible(all, key: key)) { row in
+                NavigationLink(value: TeamRef(row.number, fromEvent: event)) {
+                    HStack {
+                        Text("#\(row.rank)")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(theme.accent)
+                            .frame(width: 44, alignment: .leading)
+                            .monospacedDigit()
+                        Text(row.number).font(.subheadline)
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 1) {
+                            Text(row.average.map { String(format: "%.1f", $0) } ?? "\u{2014}")
+                                .font(.subheadline.weight(.semibold)).monospacedDigit()
+                            Text("avg · high \(row.highScore.map(String.init) ?? "\u{2014}")")
+                                .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                        }
+                    }
+                }
+            }
+            revealButton(total: all.count, key: key, noun: "teams")
+        } header: {
+            Text("Qualification standings")
+        } footer: {
+            if all.contains(where: { !$0.averageFromEvent }) {
+                Text("Average is the mean of each team's played qualification scores. Rank is the event's own.")
+            }
+        }
+        .listRowBackground(theme.surface)
+    }
+
+    /// Teamwork matches: the pair and the score they shared.
+    @ViewBuilder
+    private func iqMatchSection(_ division: Division) -> some View {
+        let key = "qual-\(division.id)"
+        let rows = division.qualification.filter { match in
+            search.isEmpty || match.teamwork.teams.contains { $0.lowercased().contains(search) } || self.matches(match.name)
+        }
+        if !rows.isEmpty {
+            Section("Teamwork matches") {
+                ForEach(visible(rows, key: key)) { match in
+                    let pair = match.teamwork
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(match.name ?? "Match").font(.subheadline.weight(.medium))
+                            Spacer()
+                            Text(pair.score.map(String.init) ?? "\u{2014}")
+                                .font(.system(.title3, design: .monospaced, weight: .semibold))
+                                .monospacedDigit()
+                        }
+                        Text(pair.teams.isEmpty ? "Teams not assigned" : pair.teams.joined(separator: " + "))
+                            .font(.caption).foregroundStyle(.secondary)
+                        if !match.isPlayed {
+                            Text("Not played").font(.caption2).foregroundStyle(.subtle)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+                revealButton(total: rows.count, key: key, noun: "matches")
+            }
+            .listRowBackground(theme.surface)
+        }
     }
 
     /// The counted figures the API publishes, then the fitted ones.
@@ -341,7 +399,7 @@ struct EventDetailView: View {
     private func stat(_ label: String, _ value: String?) -> some View {
         if let value {
             HStack(spacing: 3) {
-                Text(label).font(.system(size: 9, weight: .semibold)).foregroundStyle(.tertiary)
+                Text(label).font(.system(size: 10, weight: .semibold)).foregroundStyle(.subtle)
                 Text(value).font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundStyle(.secondary).monospacedDigit()
             }
@@ -371,7 +429,7 @@ struct EventDetailView: View {
     }
 
     @ViewBuilder
-    private func skills(_ detail: EventDetailResponse) -> some View {
+    private func skills(_ detail: EventDetailResponse, codingLabel: String) -> some View {
         let leaders = detail.skillsLeaderboard.filter { matches($0.number) }
         Section("Skills") {
             ForEach(Array(visible(leaders, key: "skills").enumerated()), id: \.element.id) { index, leader in
@@ -386,7 +444,7 @@ struct EventDetailView: View {
                     VStack(alignment: .trailing, spacing: 1) {
                         Text("\(leader.total)")
                             .font(.subheadline.weight(.semibold)).monospacedDigit()
-                        Text("\(leader.programming) auto · \(leader.driver) driver")
+                        Text("\(leader.programming) \(codingLabel) · \(leader.driver) driver")
                             .font(.caption2).foregroundStyle(.secondary).monospacedDigit()
                     }
                 }
@@ -517,7 +575,10 @@ final class EventDetailModel {
     /// Fitted ratings per division, computed once and kept: solving the
     /// system on every redraw of the list would be wasteful, and the input
     /// does not change once the event is loaded.
-    private var ratingsCache: [Int: PowerRatings] = [:]
+    /// Not observed: it is filled in while the list is being drawn, and a
+    /// write to an observed property from inside a body invalidates the view
+    /// that is mid-render, costing a second pass for nothing.
+    @ObservationIgnored private var ratingsCache: [Int: PowerRatings] = [:]
 
     func sorts(for division: Division) -> [StandingSort] {
         let rated = !powerRatings(for: division).isEmpty

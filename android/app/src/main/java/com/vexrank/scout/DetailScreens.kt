@@ -16,6 +16,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.Role
+import android.view.HapticFeedbackConstants
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,9 +32,11 @@ private val api = VexRankApi()
 private fun OpenInBrowser(url: String, label: String, theme: VexTheme) {
     val context = LocalContext.current
     Row(
-        Modifier.clickable {
-            context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
-        },
+        Modifier
+            .heightIn(min = 48.dp)
+            .clickable(role = Role.Button) {
+                context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+            },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(Icons.Filled.OpenInNew, contentDescription = null, tint = theme.accent,
@@ -71,19 +76,25 @@ fun TeamScreen(
         }
     }
 
+    val view = LocalView.current
     ScreenScaffold(number, theme, onBack = onBack, actions = {
         IconButton(onClick = {
             favourites.toggle(FavouriteTeam(number, profile?.team?.name))
             starred = favourites.contains(number)
+            // A tick under the thumb: the icon alone is easy to miss.
+            view.performHapticFeedback(HapticFeedbackConstants.CONTEXT_CLICK)
         }) {
             Icon(if (starred) Icons.Filled.Star else Icons.Filled.StarBorder,
-                contentDescription = "Favourite", tint = theme.accent)
+                contentDescription = if (starred) "Remove from favourites" else "Add to favourites",
+                tint = theme.accent)
         }
     }) { padding ->
         Box(Modifier.padding(padding)) {
-            val loaded = profile
+            PhaseFade(profile to error, { (loaded, failure) ->
+                if (loaded != null) 2 else if (failure != null) 1 else 0
+            }) { (loaded, failure) ->
             when {
-                error != null && loaded == null -> Failed(error!!, theme) { reload++ }
+                failure != null && loaded == null -> Failed(failure, theme) { reload++ }
                 loaded == null -> Loading("Loading profile…", theme)
                 else -> {
                     val seasons = loaded.seasons
@@ -136,6 +147,7 @@ fun TeamScreen(
                         item { Spacer(Modifier.height(32.dp)) }
                     }
                 }
+            }
             }
         }
     }
@@ -313,17 +325,23 @@ fun EventScreen(id: String, theme: VexTheme, onBack: () -> Unit, onOpenTeam: (St
             .onFailure { error = it.message }
     }
 
-    val loaded = detail
-    ScreenScaffold(loaded?.event?.name ?: "Event", theme, onBack = onBack) { padding ->
+    ScreenScaffold(detail?.event?.name ?: "Event", theme, onBack = onBack) { padding ->
         Box(Modifier.padding(padding)) {
+            PhaseFade(detail to error, { (loaded, failure) ->
+                if (loaded != null) 2 else if (failure != null) 1 else 0
+            }) { (loaded, failure) ->
             when {
-                error != null && loaded == null -> Failed(error!!, theme) { reload++ }
+                failure != null && loaded == null -> Failed(failure, theme) { reload++ }
                 loaded == null -> Loading("Loading event…", theme)
                 else -> {
                     val sections = loaded.availableSections
                     val active = section ?: sections.firstOrNull()
                     val divisions = active?.let { loaded.divisions(it) }.orEmpty()
                     val division = divisions.firstOrNull { it.id == divisionId } ?: divisions.firstOrNull()
+                    // Fitted once per division, not on every recomposition: it
+                    // solves a system across every qualification match, and the
+                    // chip and section changes recompose this screen often.
+                    val ratings = remember(division) { division?.powerRatings() }
 
                     Column {
                         if (sections.isNotEmpty()) {
@@ -367,8 +385,7 @@ fun EventScreen(id: String, theme: VexTheme, onBack: () -> Unit, onOpenTeam: (St
                         LazyColumn {
                             item { EventHeaderCard(loaded, theme) }
                             when (active) {
-                                EventSection.RANKINGS -> if (division != null) {
-                                    val ratings = division.powerRatings()
+                                EventSection.RANKINGS -> if (division != null && ratings != null) {
                                     val rows = division.standings(sort, ratings)
                                     items(rows.size) { index ->
                                         StandingRow(index + 1, rows[index], ratings, sort, theme) {
@@ -436,6 +453,7 @@ fun EventScreen(id: String, theme: VexTheme, onBack: () -> Unit, onOpenTeam: (St
                         }
                     }
                 }
+            }
             }
         }
     }

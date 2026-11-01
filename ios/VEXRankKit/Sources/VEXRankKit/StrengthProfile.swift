@@ -4,6 +4,13 @@ import Foundation
 public struct StrengthAxis: Identifiable, Sendable, Hashable {
     public enum Kind: String, CaseIterable, Sendable {
         case opr, ccwm, dpr, awp, winRate, skills
+        // VEX IQ, all measured results: no opponent, so no fitted ratings.
+        case average, high, driver, coding
+
+        /// V5's six, in drawing order.
+        public static let v5: [Kind] = [.opr, .ccwm, .dpr, .awp, .winRate, .skills]
+        /// VEX IQ's five, in drawing order.
+        public static let iq: [Kind] = [.average, .high, .driver, .coding, .skills]
     }
 
     public let kind: Kind
@@ -27,6 +34,10 @@ public struct StrengthAxis: Identifiable, Sendable, Hashable {
         case .awp: return "AWP"
         case .winRate: return "Win rate"
         case .skills: return "Skills"
+        case .average: return "Avg score"
+        case .high: return "High"
+        case .driver: return "Driver"
+        case .coding: return "Coding"
         }
     }
 
@@ -38,6 +49,10 @@ public struct StrengthAxis: Identifiable, Sendable, Hashable {
         case .awp: return "Autonomous win points per qualification match"
         case .winRate: return "Qualification wins, ties counted half"
         case .skills: return "Best driver + programming at this event"
+        case .average: return "Average teamwork score in qualification"
+        case .high: return "Highest teamwork score at this event"
+        case .driver: return "Best driver skills score at this event"
+        case .coding: return "Best autonomous coding skills score at this event"
         }
     }
 
@@ -116,11 +131,13 @@ extension EventDetailResponse {
                 return (Double(row.wins) + 0.5 * Double(row.ties)) / Double(played)
             case .skills:
                 return anySkills ? Double(skillTotals[team] ?? 0) : nil
+            case .average, .high, .driver, .coding:
+                return nil
             }
         }
 
         let myPlayed = me.wins + me.losses + me.ties
-        let axes = StrengthAxis.Kind.allCases.map { kind -> StrengthAxis in
+        let axes = StrengthAxis.Kind.v5.map { kind -> StrengthAxis in
             let field = division.rankings.map { value($0, kind) }
             let mine = value(me, kind)
             let lower = kind == .dpr

@@ -9,6 +9,9 @@ import VEXRankKit
 struct MomentumChart: View {
     let points: [MomentumPoint]
     let accent: Color
+    /// VEX IQ: each point is a shared score, not a running margin, so there is
+    /// no "level" line and no won/lost colouring.
+    var isScoreSeries = false
 
     private static let duration: Double = 1.1
 
@@ -25,7 +28,12 @@ struct MomentumChart: View {
                 chart(progress: 0)
             }
         }
-        .onAppear { start = reduceMotion ? .distantPast : .now }
+        // Once. Without the guard, coming back from a match replayed the whole
+        // draw over a chart the reader had already read.
+        .onAppear {
+            guard start == nil else { return }
+            start = reduceMotion ? .distantPast : .now
+        }
     }
 
     private func chart(progress: Double) -> some View {
@@ -33,9 +41,11 @@ struct MomentumChart: View {
         return Chart {
             // Level is the reading that matters, so the line for it is drawn
             // whatever the data does.
-            RuleMark(y: .value("Level", 0))
-                .foregroundStyle(.white.opacity(0.18))
-                .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            if !isScoreSeries {
+                RuleMark(y: .value("Level", 0))
+                    .foregroundStyle(.white.opacity(0.18))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            }
 
             ForEach(Array(drawn.enumerated()), id: \.offset) { _, step in
                 LineMark(x: .value("Match", step.x), y: .value("Momentum", step.y))
@@ -46,7 +56,7 @@ struct MomentumChart: View {
             // Only settled matches get a dot; the moving tip is not one.
             ForEach(drawn.compactMap(\.point)) { point in
                 PointMark(x: .value("Match", Double(point.match)), y: .value("Momentum", Double(point.cumulative)))
-                    .foregroundStyle(colour(point.outcome))
+                    .foregroundStyle(isScoreSeries ? accent : colour(point.outcome))
                     .symbolSize(50)
             }
         }

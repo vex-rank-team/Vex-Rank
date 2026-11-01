@@ -7,10 +7,21 @@
  *
  * Routes: #/  #/events  #/events/:id  #/events/:id/teams/:number  #/rankings
  *         #/stats  #/teams  #/teams/:number
+ *
+ * VEX IQ uses the same routes under an `iq/` prefix (#/iq/events/65767). V5
+ * keeps the bare form, so every link shared before IQ existed still works.
  */
 
-/** Build the address-bar hash for the current view and selection. */
-export function routeToHash(view, team, event) {
+const IQ_PREFIX = 'iq';
+
+/** Build the address-bar hash for the current view, selection and program. */
+export function routeToHash(view, team, event, program = 'V5RC') {
+  const hash = v5Hash(view, team, event);
+  if (program !== 'VIQRC') return hash;
+  return hash === '#/' ? `#/${IQ_PREFIX}` : `#/${IQ_PREFIX}/${hash.slice(2)}`;
+}
+
+function v5Hash(view, team, event) {
   if (view === 'team') return team?.number ? `#/teams/${encodeURIComponent(team.number)}` : '#/teams';
   if (view === 'teamEvent') {
     // One team's matches at one event needs both halves; without either it is
@@ -30,7 +41,14 @@ export function routeToHash(view, team, event) {
  * than navigating somewhere arbitrary.
  */
 export function hashToRoute(hash) {
-  const parts = String(hash ?? '').replace(/^#\/?/, '').split('/').filter(Boolean);
+  const all = String(hash ?? '').replace(/^#\/?/, '').split('/').filter(Boolean);
+  const iq = all[0] === IQ_PREFIX;
+  const route = parse(iq ? all.slice(1) : all);
+  // The program is only stated for IQ, so a V5 route reads exactly as before.
+  return route && iq ? { ...route, program: 'VIQRC' } : route;
+}
+
+function parse(parts) {
   if (!parts.length) return { view: 'home' };
   let head, param, sub, subParam;
   try {

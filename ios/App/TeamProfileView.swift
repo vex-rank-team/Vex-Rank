@@ -30,6 +30,7 @@ struct TeamProfileView: View {
     @Environment(\.favouriteTeams) private var favourites
     @Environment(\.appConfig) private var appConfig
     @Environment(\.numberFont) private var numberFont
+    @Environment(\.program) private var program
     @State private var model = TeamProfileModel()
     /// Seeded at init rather than assigned in `.task`: the view is recreated
     /// as the profile loads, and an assignment made from the task raced that -
@@ -70,13 +71,21 @@ struct TeamProfileView: View {
                             seasonBand(profile, season: season).reveal()
                             let trend = profile.ratingHistory
                                 .filter { season == nil || $0.seasonId == season }
-                            if trend.count > 1 { chart(trend).reveal() }
+                            if program.isIQ && profile.ratingStatus == "pending" {
+                                ratingComingSoon.reveal()
+                            } else if trend.count > 1 { chart(trend).reveal() }
                             skills(profile, season: season).reveal()
                             competitionHistory(profile, season: season).reveal()
                             awards(profile, season: season).reveal()
                         }
                     } else if let message = model.error {
-                        Text(message).font(.footnote).foregroundStyle(.secondary)
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(message).font(.footnote).foregroundStyle(.secondary)
+                            Button("Retry") { Task { await model.retry(ref: ref, ranking: ranking, program: program) } }
+                                .buttonStyle(.borderedProminent)
+                                .tint(theme.accent)
+                                .foregroundStyle(theme.onAccent)
+                        }
                     } else {
                         ProgressView().padding(.vertical, 20)
                     }
@@ -98,12 +107,17 @@ struct TeamProfileView: View {
                 } label: {
                     Image(systemName: favourites.contains(number) ? "star.fill" : "star")
                         .foregroundStyle(theme.accent)
+                        // The star fills in place rather than swapping glyphs.
+                        .contentTransition(.symbolEffect(.replace))
                 }
                 .accessibilityLabel(favourites.contains(number) ? "Remove from favourites" : "Add to favourites")
+                .sensoryFeedback(trigger: favourites.contains(number)) { _, starred in
+                    starred ? .success : .selection
+                }
             }
         }
         .task {
-            await model.load(ref: ref, ranking: ranking)
+            await model.load(ref: ref, ranking: ranking, program: program)
         }
         // The season on screen, whichever way it was chosen - the picker, the
         // launch argument, or the default of the newest season the team
@@ -125,6 +139,7 @@ struct TeamProfileView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(message).font(.footnote).foregroundStyle(.secondary)
                 Button("Retry") { Task { await model.ensure(season: season, number: number) } }
+                    .buttonStyle(.bordered)
                     .tint(theme.accent)
             }
         } else {
@@ -134,7 +149,7 @@ struct TeamProfileView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("V5RC TEAM PROFILE  /  \(model.profile?.team.active == true ? "ACTIVE" : "UNRATED")")
+            Text("\(program.rawValue) TEAM PROFILE  /  \(model.profile?.team.active == true ? "ACTIVE" : program.isRated ? "UNRATED" : "INACTIVE")")
                 .font(.caption2.weight(.semibold))
                 .tracking(2)
                 .foregroundStyle(.secondary)
@@ -174,7 +189,7 @@ struct TeamProfileView: View {
                     Text(standing.label).font(.caption2.weight(.semibold)).tracking(1.5)
                         .foregroundStyle(.secondary)
                     Text(standing.value)
-                        .font(.system(size: standing.rating == nil ? 26 : 40,
+                        .font(.system(size: standing.rating == nil ? (program.isIQ ? 20 : 26) : 40,
                                       weight: .bold, design: .rounded))
                         .monospacedDigit()
                     if standing.label == "LIVE VCR", let confidence = row?.confidence {
@@ -246,7 +261,19 @@ struct TeamProfileView: View {
         let isCurrent = selected == nil || selected == seasons.first?.id
 
         if isCurrent, let row {
-            return ("LIVE VCR", "\(row.rating)", row.rating)
+            return (program.isIQ ? "VIQCR" : "LIVE VCR", "\(row.rating)", row.rating)
+        }
+        if program.isIQ {
+            // A season with nothing published yet: say so, rather than
+            // "Unrated", which reads as a verdict on the team.
+            if profile?.ratingStatus == "pending" { return ("VEX IQ RATING", "Coming soon", nil) }
+            // Otherwise the rating after the team's latest rated event.
+            if let last = profile?.ratingHistory
+                .filter({ selected == nil || $0.seasonId == selected })
+                .max(by: { ($0.date ?? .distantPast) < ($1.date ?? .distantPast) }) {
+                return ("VIQCR", "\(last.rating)", last.rating)
+            }
+            return ("VIQCR", "Unrated", nil)
         }
         // An earlier season has no live rating, but it does have the rating it
         // finished on.
@@ -263,7 +290,7 @@ struct TeamProfileView: View {
     /// contact details, robot photos, the team's own description.
     @ViewBuilder
     private var officialLink: some View {
-        if let url = OfficialLinks.team(number, program: appConfig.config.program) {
+        if let url = OfficialLinks.team(number, program: program.rawValue) {
             Link(destination: url) {
                 HStack(spacing: 10) {
                     Image(systemName: "safari").foregroundStyle(theme.accent)
@@ -273,7 +300,7 @@ struct TeamProfileView: View {
                         Text("Official team page").font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 8)
-                    Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(.tertiary)
+                    Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(.subtle)
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -299,7 +326,7 @@ struct TeamProfileView: View {
                         Text(event.name).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                     }
                     Spacer(minLength: 8)
-                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                    Image(systemName: "chevron.right").font(.caption).foregroundStyle(.subtle)
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -315,7 +342,7 @@ struct TeamProfileView: View {
     /// done - which is most of the time, so it must not leave a gap.
     @ViewBuilder
     private var upcoming: some View {
-        if let event = model.currentEvent, !model.upcomingMatches.isEmpty {
+        if let event = model.currentEvent, !model.upcomingIQ.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("UP NEXT").font(.caption2.weight(.semibold)).tracking(1.6)
@@ -323,7 +350,44 @@ struct TeamProfileView: View {
                     NavigationLink(value: event.ref.focused(on: number)) {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             Text(event.name).font(.subheadline.weight(.medium)).lineLimit(2)
-                            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.tertiary)
+                            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.subtle)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+                // Teamwork: who they play with. No colour and no opponent.
+                ForEach(model.upcomingIQ) { match in
+                    VStack(alignment: .leading, spacing: 5) {
+                        Divider().overlay(Color.white.opacity(0.18))
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(match.name).font(.subheadline.weight(.medium))
+                            Spacer(minLength: 8)
+                            if let time = match.scheduled {
+                                Text(time.formatted(date: .omitted, time: .shortened))
+                                    .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                            }
+                        }
+                        if !match.partners.isEmpty {
+                            Text("With \(match.partners.joined(separator: ", "))")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(theme.accent.opacity(0.35), lineWidth: 1))
+        } else if let event = model.currentEvent, !model.upcomingMatches.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("UP NEXT").font(.caption2.weight(.semibold)).tracking(1.6)
+                        .foregroundStyle(theme.accent)
+                    NavigationLink(value: event.ref.focused(on: number)) {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(event.name).font(.subheadline.weight(.medium)).lineLimit(2)
+                            Image(systemName: "chevron.right").font(.caption2).foregroundStyle(.subtle)
                         }
                     }
                     .buttonStyle(.plain)
@@ -352,7 +416,7 @@ struct TeamProfileView: View {
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                             if let field = match.field, !field.isEmpty {
-                                Text("· \(field)").font(.caption).foregroundStyle(.tertiary)
+                                Text("· \(field)").font(.caption).foregroundStyle(.subtle)
                             }
                         }
                         if !match.opponents.isEmpty {
@@ -405,6 +469,25 @@ struct TeamProfileView: View {
         }
     }
 
+    /// Where the rating line will go, in the same place and style.
+    private var ratingComingSoon: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Tournament rating movement").font(.title3.weight(.semibold))
+            HStack(alignment: .top, spacing: 12) {
+                Rectangle().fill(theme.accent).frame(width: 3)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("The VEX IQ rating is coming soon.").font(.subheadline.weight(.semibold))
+                    Text("It is being built for teamwork matches, where two teams share one score. Nothing here shows an estimated rating meanwhile.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(theme.surface)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+    }
+
     private func chart(_ history: [RatingPoint]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Tournament rating movement").font(.title3.weight(.semibold))
@@ -443,7 +526,8 @@ extension TeamProfileView {
                 sectionTitle("Robot skills", "Season best skills scores")
                 HStack(alignment: .top, spacing: 14) {
                     skillMetric("Driver", best.driver, "Highest official driver score")
-                    skillMetric("Programming", best.programming, "Highest official autonomous score")
+                    skillMetric(program.isIQ ? "Coding" : "Programming", best.programming,
+                                program.isIQ ? "Highest official autonomous coding score" : "Highest official autonomous score")
                     skillMetric("Combined", best.combined, "Best pair at one event")
                 }
             }
@@ -481,7 +565,7 @@ extension TeamProfileView {
                                         .font(.caption).foregroundStyle(.secondary)
                                 }
                                 Image(systemName: "chevron.right")
-                                    .font(.caption2).foregroundStyle(.tertiary)
+                                    .font(.caption2).foregroundStyle(.subtle)
                             }
                         }
                         .buttonStyle(.plain)
@@ -492,7 +576,9 @@ extension TeamProfileView {
                             Text(result).font(.caption.weight(.semibold)).foregroundStyle(theme.accent)
                         }
                         ForEach(standings(profile, eventID: event.id), id: \.self) { standing in
-                            Text("Qualification #\(standing.rank) · \(standing.record)")
+                            Text(program.isIQ
+                                 ? "Qualification #\(standing.rank) · high \(standing.highScore.map(String.init) ?? "\u{2014}")"
+                                 : "Qualification #\(standing.rank) · \(standing.record)")
                                 .font(.caption).foregroundStyle(.primary.opacity(0.8))
                         }
                     }
@@ -540,6 +626,8 @@ final class TeamProfileModel {
     /// play there. Both empty unless an event is actually running.
     private(set) var currentEvent: TeamEvent?
     private(set) var upcomingMatches: [TeamMatch] = []
+    /// The same, for a VEX IQ event: teamwork matches still to play.
+    private(set) var upcomingIQ: [TeamworkMatch] = []
     private(set) var hasOriginMatches = false
     /// Why a season could not be loaded, for the retry in its place.
     private(set) var seasonError: [Int: String] = [:]
@@ -572,6 +660,13 @@ final class TeamProfileModel {
     private func loadUpcoming(number: String) async {
         guard let event = profile?.currentEvent() else { return }
         guard let detail = try? await api.eventDetail(id: String(event.id)) else { return }
+        if detail.isIQ {
+            let left = detail.iqMatches(for: number).filter { !$0.isPlayed }
+            guard !left.isEmpty else { return }
+            currentEvent = event
+            upcomingIQ = left
+            return
+        }
         let matches = detail.upcomingMatches(for: number)
         guard !matches.isEmpty else { return }
         currentEvent = event
@@ -587,8 +682,15 @@ final class TeamProfileModel {
         hasOriginMatches = !detail.matches(for: ref.number).isEmpty
     }
 
+    /// Clears the error first, so the spinner shows while it tries again.
     @MainActor
-    func load(ref: TeamRef, ranking: TeamRanking?) async {
+    func retry(ref: TeamRef, ranking: TeamRanking?, program: Program) async {
+        error = nil
+        await load(ref: ref, ranking: ranking, program: program)
+    }
+
+    @MainActor
+    func load(ref: TeamRef, ranking: TeamRanking?, program: Program = .v5rc) async {
         guard profile == nil else { return }
         let number = ref.number
 
@@ -607,13 +709,32 @@ final class TeamProfileModel {
         if let known = await api.lastKnownTeamProfile(number: number, season: season) {
             profile = known
         }
+        // A team opened for the first time: its official records straight from
+        // events.vex, shown while the Worker works out the rating graph. Only
+        // into an empty screen - the Worker's profile merges over it, and a
+        // late direct answer never replaces what the Worker already sent.
+        let direct = Task { @MainActor in
+            guard let found = await DirectProfile.profile(number: number, season: season, program: program),
+                  self.profile == nil else { return }
+            self.profile = found
+        }
         do {
             let fresh = try await api.teamProfile(number: number, season: season)
+            // A server that predates VEX IQ ignores the program and answers
+            // with the V5 team of that number. Shown as unavailable, never as
+            // the wrong team.
+            if program.isIQ && fresh.program != Program.viqrc.rawValue {
+                profile = nil
+                self.error = "This team's VEX IQ profile is not available yet."
+                return
+            }
             // Folded in rather than assigned: a season picked while this was
             // loading has already been merged into what is on screen.
             profile = profile?.merging(fresh) ?? fresh
         } catch {
             // Keep the saved copy if there is one; it is only a little old.
+            // Nor is it an error while events.vex may still answer directly.
+            if profile == nil { await direct.value }
             if profile == nil { self.error = error.localizedDescription }
         }
 
@@ -621,7 +742,10 @@ final class TeamProfileModel {
         await origin
 
         // Best effort: a team outside the published ranking simply has none.
-        if let rankings = await ranked {
+        // Only rows the server marked as this program's: an older server
+        // answers an IQ request with V5 rows, and a V5 team of the same number
+        // would otherwise lend its rating to an IQ profile.
+        if let rankings = await ranked, !program.isIQ || rankings.program == Program.viqrc.rawValue {
             resolvedRanking = rankings.rankings.first {
                 $0.number.caseInsensitiveCompare(number) == .orderedSame
             }

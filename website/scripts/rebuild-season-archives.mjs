@@ -8,7 +8,7 @@ import { historicalMatches } from '../lib/archive-matches.mjs';
 // Run from website/: node scripts/rebuild-season-archives.mjs 197 [190 181 173].
 // Downloads are resumable; publishing the generated assets is a separate step.
 // Uses the existing public competition-data API; its server retains the API credential.
-const api = 'https://vexrank-api-test.vexrank-eason.workers.dev';
+const api = 'https://vexrank-api-test.qiansteven54.workers.dev';
 const seasons = {197:['2025–26 Push Back','2026-06-01','2025-26'],190:['2024–25 High Stakes','2025-06-01','2024-25'],181:['2023–24 Over Under','2024-06-01','2023-24'],173:['2022–23 Spin Up','2023-06-01','2022-23']};
 const selected = process.argv.slice(2).map(Number);
 if (!selected.length || selected.some(id=>!seasons[id])) throw new Error('Specify season IDs: 197 190 181 173');

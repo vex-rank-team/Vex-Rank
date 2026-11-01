@@ -67,10 +67,21 @@ struct EventsListView: View {
             } actions: {
                 Button("Retry") { Task { await model.load() } }
                     .buttonStyle(.borderedProminent).tint(theme.accent)
+                    .foregroundStyle(theme.onAccent)
             }
         case .loaded(let events):
             let shown = filter(events)
-            if shown.isEmpty {
+            if shown.isEmpty, query.trimmingCharacters(in: .whitespaces).isEmpty {
+                ContentUnavailableView {
+                    Label("No upcoming events", systemImage: "calendar")
+                } description: {
+                    Text("Nothing is on the calendar yet. Past events are under All.")
+                } actions: {
+                    Button("Show all events") { upcomingOnly = false }
+                        .buttonStyle(.borderedProminent).tint(theme.accent)
+                        .foregroundStyle(theme.onAccent)
+                }
+            } else if shown.isEmpty {
                 ContentUnavailableView.search(text: query)
             } else {
                 list(shown)
@@ -147,6 +158,9 @@ final class EventsModel {
         // seconds, and the calendar has barely changed since the last look.
         if case .loaded = state {} else if let known = await api.lastKnownEvents() {
             state = .loaded(known.events)
+        } else if case .failed = state {
+            // A retry: say it is trying rather than leaving the error standing.
+            state = .loading
         }
         do { state = .loaded(try await api.events().events) }
         catch {

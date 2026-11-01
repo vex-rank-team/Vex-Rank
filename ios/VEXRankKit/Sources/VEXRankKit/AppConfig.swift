@@ -27,6 +27,16 @@ public struct AppConfig: Sendable, Equatable {
     public var flags: [String: Bool]
     public var update: UpdateInfo
     public var announcement: Announcement?
+    /// Per-program settings, keyed by program code. Missing for configs that
+    /// predate VEX IQ, in which case each program uses its built-in season.
+    public var programs: [String: ProgramSettings] = [:]
+
+    /// The season the live tabs read for `program`. V5 keeps reading the
+    /// top-level `currentSeason` so old and new configs agree about it.
+    public func currentSeason(for program: Program) -> Int {
+        if let season = programs[program.rawValue]?.currentSeason { return season }
+        return program == .v5rc ? currentSeason : program.defaultSeason
+    }
 
     public func flag(_ name: String, default fallback: Bool = false) -> Bool {
         flags[name] ?? fallback
@@ -48,6 +58,13 @@ public struct AppConfig: Sendable, Equatable {
         update: UpdateInfo(),
         announcement: nil
     )
+}
+
+/// Settings that differ between V5 and VEX IQ.
+public struct ProgramSettings: Codable, Sendable, Equatable {
+    public var currentSeason: Int
+
+    public init(currentSeason: Int) { self.currentSeason = currentSeason }
 }
 
 /// The build the service would like the reader to be on.
@@ -140,6 +157,11 @@ extension AppConfig: Codable {
         update = ((try? wire.decodeIfPresent(UpdateInfo.self, forKey: .update)) ?? nil) ?? base.update
         announcement = ((try? wire.decodeIfPresent(Announcement.self, forKey: .announcement)) ?? nil)
             ?? base.announcement
+
+        // Each season is held to the same window as `currentSeason`; a bad
+        // one is dropped and that program falls back to its built-in season.
+        let wirePrograms = ((try? wire.decodeIfPresent([String: ProgramSettings].self, forKey: .programs)) ?? nil) ?? [:]
+        programs = wirePrograms.filter { Program(rawValue: $0.key) != nil && (150...400).contains($0.value.currentSeason) }
     }
 
     static func clamp(_ value: Double?, _ low: Double, _ high: Double, _ fallback: Double) -> Double {

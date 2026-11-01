@@ -1,5 +1,15 @@
 import Foundation
 
+/// The selected program, readable from any thread.
+final class ProgramSelection: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: Program = .v5rc
+    var value: Program {
+        get { lock.lock(); defer { lock.unlock() }; return stored }
+        set { lock.lock(); stored = newValue; lock.unlock() }
+    }
+}
+
 public enum VEXRankError: LocalizedError, Sendable {
     case unreachable
     case upstream(status: Int)
@@ -24,7 +34,7 @@ public enum VEXRankError: LocalizedError, Sendable {
 /// already gone wrong once on the web, where the live route and the archive
 /// scripts used different confidence floors and silently disagreed.
 public actor VEXRankAPI {
-    public static let defaultBaseURL = URL(string: "https://vexrank-api-test.vexrank-eason.workers.dev")!
+    public static let defaultBaseURL = URL(string: "https://vexrank-api-test.qiansteven54.workers.dev")!
 
     /// The instance the screens use.
     ///
@@ -34,7 +44,21 @@ public actor VEXRankAPI {
     /// event the previous screen already had. And the remote config has to
     /// reach every caller, which it cannot do if each one holds a private copy
     /// of the season it was built with.
-    public static let shared = VEXRankAPI()
+    public static let shared = VEXRankAPI(baseURL: launchBaseURL ?? defaultBaseURL)
+
+    /// `-api-base http://127.0.0.1:8787` points a debug build at a local
+    /// server, for checking screens against responses the deployed service
+    /// does not send yet. Compiled out of release builds, so a shipped app
+    /// cannot be redirected.
+    static var launchBaseURL: URL? {
+        #if DEBUG
+        guard let index = CommandLine.arguments.firstIndex(of: "-api-base"),
+              CommandLine.arguments.indices.contains(index + 1) else { return nil }
+        return URL(string: CommandLine.arguments[index + 1])
+        #else
+        return nil
+        #endif
+    }
 
     private let baseURL: URL
     private let session: URLSession
@@ -79,8 +103,27 @@ public actor VEXRankAPI {
 
     public func apply(_ config: AppConfig) { self.config = config }
 
-    /// The season the app treats as current, from the remote config.
-    public func currentSeason() -> Int { config.currentSeason }
+    /// The program requests are for. One client serves both, so the screens
+    /// keep calling `rankings()` and `events()`; the program goes on the path,
+    /// which also keeps the two programs' cached responses apart.
+    ///
+    /// Held in a lock rather than as actor state so it can be set
+    /// synchronously: the root view sets it in the same step that rebuilds the
+    /// screens, and an `await` there would let the new screens fetch first.
+    private nonisolated let selection = ProgramSelection()
+    private var program: Program { selection.value }
+
+    public nonisolated func use(_ program: Program) { selection.value = program }
+
+    /// The season the app treats as current for the program, from the remote config.
+    public func currentSeason() -> Int { config.currentSeason(for: program) }
+
+    /// `path` with the program on it. V5 paths are left exactly as they were,
+    /// so every V5 cache entry and snapshot keeps its name.
+    func scoped(_ path: String) -> String {
+        guard program.isIQ else { return path }
+        return path + (path.contains("?") ? "&" : "?") + "program=VIQRC"
+    }
 
     /// The settings document. Deliberately not retried hard and not cached in
     /// the response cache: the store keeps its own copy on disk, and a config
@@ -106,13 +149,20 @@ public actor VEXRankAPI {
     static func snapshotName(for path: String) -> String? {
         if path == liveRankingsPath { return "rankings" }
         guard let components = URLComponents(string: path) else { return nil }
+        // VEX IQ snapshots get their own names: a team number is not unique
+        // across programs, and a V5 table must never be drawn as IQ's.
+        let iq = components.queryItems?.contains { $0.name == "program" && $0.value == "VIQRC" } ?? false
+        let suffix = iq ? "-VIQRC" : ""
+        if iq && components.path == "/api/rankings" && components.queryItems?.contains(where: { $0.name == "season" }) != true {
+            return "rankings" + suffix
+        }
         let season = components.queryItems?.first { $0.name == "season" }?.value
         if components.path == "/api/events", let season {
-            return "events-" + safe(season)
+            return "events-" + safe(season) + suffix
         }
         if components.path.hasPrefix("/api/teams/"), let season {
             let number = String(components.path.dropFirst("/api/teams/".count))
-            return "team-" + safe(number.uppercased()) + "-" + safe(season)
+            return "team-" + safe(number.uppercased()) + "-" + safe(season) + suffix
         }
         return nil
     }
@@ -127,41 +177,43 @@ public actor VEXRankAPI {
     /// The world ranking as it was when the app last saw it, for drawing the
     /// first screen while the current one is on its way. `nil` on a first run.
     public func lastKnownRankings() -> RankingsResponse? {
-        Snapshots.load(RankingsResponse.self, named: "rankings", decoder: decoder)
+        guard let name = Self.snapshotName(for: scoped(Self.liveRankingsPath)) else { return nil }
+        return Snapshots.load(RankingsResponse.self, named: name, decoder: decoder)
     }
 
     /// The season's events as last seen, for the same reason.
     public func lastKnownEvents(season: Int? = nil) -> EventsResponse? {
-        Snapshots.load(EventsResponse.self, named: "events-\(season ?? config.currentSeason)", decoder: decoder)
+        guard let name = Self.snapshotName(for: scoped("/api/events?season=\(season ?? currentSeason())&classification=v49")) else { return nil }
+        return Snapshots.load(EventsResponse.self, named: name, decoder: decoder)
     }
 
     /// A profile as it was when the reader last opened it, so reopening a team
     /// draws at once instead of waiting on the network a second time.
     public func lastKnownTeamProfile(number: String, season: Int) -> TeamProfileResponse? {
         let encoded = number.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? number
-        guard let name = Self.snapshotName(for: "/api/teams/\(encoded)?profile=v8&season=\(season)") else { return nil }
+        guard let name = Self.snapshotName(for: scoped("/api/teams/\(encoded)?profile=v8&season=\(season)")) else { return nil }
         return Snapshots.load(TeamProfileResponse.self, named: name, decoder: decoder)
     }
 
     public func rankings(season: Int? = nil) async throws -> RankingsResponse {
         var path = Self.liveRankingsPath
         if let season { path += "&season=\(season)" }
-        return try await get(path)
+        return try await get(scoped(path))
     }
 
     public func events(season: Int? = nil) async throws -> EventsResponse {
-        try await get("/api/events?season=\(season ?? config.currentSeason)&classification=v49")
+        try await get(scoped("/api/events?season=\(season ?? currentSeason())&classification=v49"))
     }
 
     /// The whole directory in one response - about 11 MB and 56,000 teams, so
     /// it gets the long resource timeout and a single attempt: retrying a
     /// download that size on a phone connection costs more than it recovers.
     public func teamDirectory() async throws -> TeamDirectoryResponse {
-        try await get("/api/team-directory", attempts: 1)
+        try await get(scoped("/api/team-directory"), attempts: 1)
     }
 
     public func skills(season: Int? = nil) async throws -> SkillsResponse {
-        try await get("/api/skills?season=\(season ?? config.currentSeason)")
+        try await get(scoped("/api/skills?season=\(season ?? currentSeason())"))
     }
 
     public func eventDetail(id: String, fresh: Bool = false) async throws -> EventDetailResponse {
@@ -173,7 +225,7 @@ public actor VEXRankAPI {
         let encoded = number.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? number
         var path = "/api/teams/\(encoded)?profile=v8"
         if let season { path += "&season=\(season)" }
-        return try await get(path)
+        return try await get(scoped(path))
     }
 
     // MARK: - Transport

@@ -17,9 +17,12 @@ export const CURRENT_SEASON_ID = 204;
 
 const SEASON_BY_NAME = { '2026–27 Override': 204, '2025–26 Push Back': 197 };
 
+/** The season a VEX IQ profile opens on: 2026–27 Level Up. */
+export const IQ_CURRENT_SEASON_ID = 203;
+
 /** Which season to ask for first when opening `team`. */
-export function initialSeason(team) {
-  return Number(team?.seasonId) || SEASON_BY_NAME[team?.season] || CURRENT_SEASON_ID;
+export function initialSeason(team, program = 'V5RC') {
+  return Number(team?.seasonId) || SEASON_BY_NAME[team?.season] || (program === 'VIQRC' ? IQ_CURRENT_SEASON_ID : CURRENT_SEASON_ID);
 }
 
 /** Whether `profile` carries the rows for `season`. Unscoped responses carry all. */

@@ -1,9 +1,16 @@
 package com.vexrank.scout
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -14,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -87,22 +95,26 @@ fun <T> ChipRow(
             .horizontalScroll(rememberScrollState())
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         options.forEach { option ->
             val active = option == selected
+            // Eased rather than snapped, and short: the list under the chips
+            // changes at the same moment and should not wait on it.
+            val fill by animateColorAsState(if (active) theme.accent else theme.surface,
+                tween(180), label = "chip fill")
+            val ink by animateColorAsState(if (active) theme.onAccent else Color(0xFFB9C0CC),
+                tween(180), label = "chip ink")
             Box(
                 Modifier
+                    // The pill stays 32dp; the touch target around it is 48dp.
+                    .minimumInteractiveComponentSize()
                     .clip(RoundedCornerShape(50))
-                    .background(if (active) theme.accent else theme.surface)
-                    .clickable { onSelect(option) }
+                    .background(fill)
+                    .selectable(selected = active, role = Role.Tab) { onSelect(option) }
                     .padding(horizontal = 14.dp, vertical = 7.dp)
             ) {
-                Text(
-                    label(option),
-                    color = if (active) Color.White else Color(0xFFB9C0CC),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                Text(label(option), color = ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -119,7 +131,11 @@ fun DropdownPicker(
     var open by remember { mutableStateOf(false) }
     Box {
         Row(
-            Modifier.clickable { open = true },
+            Modifier
+                .heightIn(min = 48.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(role = Role.DropdownList) { open = true }
+                .padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(label, color = theme.accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
@@ -141,7 +157,7 @@ fun DropdownPicker(
 fun Stat(label: String, value: String?, modifier: Modifier = Modifier) {
     if (value == null) return
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF7A8492))
+        Text(label, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, color = Ink.subtle)
         Spacer(Modifier.width(3.dp))
         Text(value, fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = Color(0xFFB9C0CC))
     }
@@ -176,6 +192,21 @@ fun Failed(message: String, theme: VexTheme, onRetry: () -> Unit) {
             }
         }
     }
+}
+
+/// Fades between loading, failed and loaded - and only between them. Keyed on
+/// the phase, so a refresh that lands new data on a loaded list recomposes it
+/// in place and keeps its scroll position, instead of fading in a fresh copy.
+@Composable
+fun <T> PhaseFade(state: T, phase: (T) -> Int, content: @Composable (T) -> Unit) {
+    AnimatedContent(
+        targetState = state,
+        contentKey = phase,
+        // The outgoing phase leaves quickly; the arrival waits a beat so the
+        // two never sit on screen at half strength together.
+        transitionSpec = { fadeIn(tween(220, delayMillis = 60)) togetherWith fadeOut(tween(120)) },
+        label = "phase",
+    ) { content(it) }
 }
 
 @Composable

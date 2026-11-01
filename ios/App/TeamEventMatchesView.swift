@@ -15,7 +15,9 @@ struct TeamEventMatchesView: View {
                 Section {
                     VStack(alignment: .leading, spacing: 14) {
                         // Where they stand, before what they played.
-                        if let standing = model.standing {
+                        if model.isIQ {
+                            iqHeader(record)
+                        } else if let standing = model.standing {
                             HStack(alignment: .firstTextBaseline, spacing: 10) {
                                 Text("#\(standing.rank)")
                                     .font(.system(size: 34, weight: .bold, design: .rounded))
@@ -57,7 +59,7 @@ struct TeamEventMatchesView: View {
                                     // These move a lot early on; say so rather
                                     // than presenting them as settled.
                                     Text("Provisional - few matches played so far")
-                                        .font(.caption2).foregroundStyle(.tertiary)
+                                        .font(.caption2).foregroundStyle(.subtle)
                                 }
                             }
                         } else {
@@ -83,14 +85,14 @@ struct TeamEventMatchesView: View {
                             HStack(alignment: .firstTextBaseline) {
                                 Text(axis.label).font(.subheadline).foregroundStyle(.secondary)
                                 if axis.lowerIsBetter {
-                                    Text("lower is better").font(.caption2).foregroundStyle(.tertiary)
+                                    Text("lower is better").font(.caption2).foregroundStyle(.subtle)
                                 }
                                 Spacer(minLength: 8)
                                 Text(axis.display)
                                     .font(.system(.subheadline, design: .monospaced, weight: .semibold))
                                     .monospacedDigit()
                                 Text(axis.place.map { "\(ordinal($0)) of \(axis.of)" } ?? "no data yet")
-                                    .font(.caption).foregroundStyle(.tertiary)
+                                    .font(.caption).foregroundStyle(.subtle)
                                     .frame(minWidth: 62, alignment: .trailing)
                             }
                         }
@@ -101,13 +103,27 @@ struct TeamEventMatchesView: View {
                 } footer: {
                     // What the shape means, since a radar chart on its own
                     // invites reading raw values off it.
-                    Text("Each axis ranks \(ref.team) against the \(profile.teams) teams in \(profile.division.isEmpty ? "its division" : profile.division): the edge is the best there, the dashed ring the middle. AWP is autonomous win points per qualification match, worked out from win points.\(profile.isProvisional ? " Ratings are provisional until each team has played about four matches." : "")")
+                    Text(model.isIQ
+                         ? "Each axis places \(ref.team) among the \(profile.teams) teams in \(profile.division.isEmpty ? "its division" : profile.division) on measured results: the edge is the best there, the dashed ring the middle. Skills is the best driver + autonomous coding total here. These are results, not a rating."
+                         : "Each axis ranks \(ref.team) against the \(profile.teams) teams in \(profile.division.isEmpty ? "its division" : profile.division): the edge is the best there, the dashed ring the middle. AWP is autonomous win points per qualification match, worked out from win points.\(profile.isProvisional ? " Ratings are provisional until each team has played about four matches." : "")")
                         .font(.caption2)
                 }
                 .listRowBackground(theme.surface)
             }
 
-            if !model.momentum.isEmpty {
+            if model.isIQ, !model.momentum.isEmpty {
+                Section("Teamwork scores") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        MomentumChart(points: model.momentum, accent: theme.accent, isScoreSeries: true)
+                            .frame(height: 190)
+                        let scores = model.momentum.map(\.cumulative)
+                        Text("Average \(String(format: "%.1f", Double(scores.reduce(0, +)) / Double(max(1, scores.count)))) across \(scores.count) matches · high \(scores.max() ?? 0).")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+                .listRowBackground(theme.surface)
+            } else if !model.momentum.isEmpty {
                 Section("Tournament momentum") {
                     VStack(alignment: .leading, spacing: 8) {
                         MomentumChart(points: model.momentum, accent: theme.accent)
@@ -121,6 +137,17 @@ struct TeamEventMatchesView: View {
                     .padding(.vertical, 4)
                 }
                 .listRowBackground(theme.surface)
+            }
+
+            if model.isIQ {
+                if !model.iqPlayed.isEmpty {
+                    Section("Played") { ForEach(model.iqPlayed) { iqRow($0) } }
+                        .listRowBackground(theme.surface)
+                }
+                if !model.iqUpcoming.isEmpty {
+                    Section("Scheduled") { ForEach(model.iqUpcoming) { iqRow($0) } }
+                        .listRowBackground(theme.surface)
+                }
             }
 
             if !model.played.isEmpty {
@@ -157,7 +184,7 @@ struct TeamEventMatchesView: View {
                 .listRowBackground(theme.surface)
             } else if model.record == nil {
                 Section { ProgressView() }.listRowBackground(theme.surface)
-            } else if model.played.isEmpty && model.upcoming.isEmpty {
+            } else if model.played.isEmpty && model.upcoming.isEmpty && model.iqPlayed.isEmpty && model.iqUpcoming.isEmpty {
                 Section {
                     Text("No matches are listed for \(ref.team) at this event.")
                         .font(.footnote).foregroundStyle(.secondary)
@@ -181,11 +208,82 @@ struct TeamEventMatchesView: View {
         }
     }
 
+    /// Rank, average and high score: what VEX IQ ranks on. No record, no
+    /// WP/AP/SP and no fitted ratings - a teamwork match has no opponent.
+    @ViewBuilder
+    private func iqHeader(_ record: TeamEventRecord) -> some View {
+        if let standing = model.iqStanding {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("#\(standing.rank)")
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+                    .foregroundStyle(theme.accent)
+                    .monospacedDigit()
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("QUALIFICATION RANK")
+                        .font(.caption2.weight(.semibold)).tracking(1.2)
+                        .foregroundStyle(.secondary)
+                    Text(standing.division).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text(standing.average.map { String(format: "%.1f", $0) } ?? "\u{2014}")
+                        .font(.system(.title3, design: .rounded, weight: .semibold))
+                        .monospacedDigit()
+                    // What is left to play is the "Left" figure just below.
+                    Text("Average score")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            Divider().overlay(Color.white.opacity(0.14))
+            HStack(spacing: 14) {
+                stat("High", standing.highScore.map(String.init))
+                stat("Played", String(standing.played))
+                stat("Left", String(record.remaining))
+            }
+            if !standing.averageFromEvent {
+                Text("The average is the mean of the team's played qualification scores.")
+                    .font(.caption2).foregroundStyle(.subtle)
+            }
+        } else {
+            HStack(alignment: .top, spacing: 14) {
+                metric("Played", "\(model.iqPlayed.count)", "Teamwork matches")
+                metric("Remaining", "\(record.remaining)", record.remaining == 0 ? "Schedule complete" : "Still to play")
+            }
+        }
+    }
+
+    /// A teamwork match from the team's side: the partner and the score they
+    /// shared. No result, colour or opponent.
+    private func iqRow(_ match: TeamworkMatch) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(match.name).font(.subheadline.weight(.medium))
+                Spacer(minLength: 8)
+                if let score = match.score {
+                    Text("\(score)")
+                        .font(.system(.title3, design: .monospaced, weight: .semibold))
+                        .monospacedDigit()
+                } else if let time = match.scheduled {
+                    Text(time.formatted(date: .omitted, time: .shortened))
+                        .font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                }
+            }
+            if !match.partners.isEmpty {
+                Text("\(match.isPlayed ? "Scored with" : "With") \(match.partners.joined(separator: ", "))")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if let field = match.field, !field.isEmpty {
+                Text(field).font(.caption).foregroundStyle(.subtle)
+            }
+        }
+        .padding(.vertical, 2)
+    }
+
     @ViewBuilder
     private func stat(_ label: String, _ value: String?) -> some View {
         if let value {
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(.system(size: 10, weight: .semibold)).foregroundStyle(.tertiary)
+                Text(label).font(.system(size: 10, weight: .semibold)).foregroundStyle(.subtle)
                 Text(value)
                     .font(.system(size: 15, weight: .medium, design: .monospaced))
                     .monospacedDigit()
@@ -198,7 +296,7 @@ struct TeamEventMatchesView: View {
         VStack(alignment: .leading, spacing: 3) {
             Text(label).font(.caption2).foregroundStyle(.secondary)
             Text(value).font(.system(.title3, design: .rounded, weight: .semibold)).monospacedDigit()
-            Text(detail).font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
+            Text(detail).font(.caption2).foregroundStyle(.subtle).lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -239,7 +337,7 @@ struct TeamEventMatchesView: View {
                 }
 
                 if let field = match.field, !field.isEmpty {
-                    Text(field).font(.caption).foregroundStyle(.tertiary)
+                    Text(field).font(.caption).foregroundStyle(.subtle)
                 }
             }
 
@@ -284,6 +382,12 @@ final class TeamEventMatchesModel {
     private(set) var check: RecordCheck?
     private(set) var strength: StrengthProfile?
     private(set) var error: String?
+    /// VEX IQ: read from the event, not the selected program, so a link into
+    /// an IQ event is read correctly either way.
+    private(set) var isIQ = false
+    private(set) var iqStanding: IQStanding?
+    private(set) var iqPlayed: [TeamworkMatch] = []
+    private(set) var iqUpcoming: [TeamworkMatch] = []
     private let api = VEXRankAPI.shared
 
     @MainActor
@@ -292,6 +396,18 @@ final class TeamEventMatchesModel {
         error = nil
         do {
             let detail = try await api.eventDetail(id: ref.event.id, fresh: force)
+            if detail.isIQ {
+                let teamwork = detail.iqMatches(for: ref.team)
+                isIQ = true
+                iqPlayed = teamwork.filter(\.isPlayed)
+                iqUpcoming = teamwork.filter { !$0.isPlayed }
+                iqStanding = detail.iqStanding(for: ref.team)
+                momentum = IQScoreSeries.points(from: teamwork)
+                strength = detail.iqStrengthProfile(for: ref.team)
+                // Only `remaining` is read for IQ: it decides whether to keep polling.
+                record = TeamEventRecord(wins: 0, losses: 0, ties: 0, remaining: iqUpcoming.count)
+                return
+            }
             let all = detail.matches(for: ref.team)
             played = all.filter(\.isPlayed)
             upcoming = all.filter { !$0.isPlayed }

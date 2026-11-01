@@ -1,0 +1,12 @@
+// Build settings shared by Debug and Release.
+//
+// VEX_DIRECT_TOKEN is the events.vex token the app uses to read team profiles
+// itself (VEXRankKit/DirectProfile.swift). It reaches the app through
+// App/Info.plist. Put it in Secrets.xcconfig beside this file, which git
+// ignores:
+//
+//     VEX_DIRECT_TOKEN = your-token
+//
+// Without it the app reads everything through the Worker, as before.
+VEX_DIRECT_TOKEN =
+#include? "Secrets.xcconfig"

@@ -244,7 +244,7 @@ export function percentile(value, field, better = 'higher') {
 }
 
 /** 1-based place in the field, ties sharing the better place. */
-function place(value, field, better) {
+export function place(value, field, better) {
   return 1 + field.filter(v => v != null && (better === 'higher' ? v > value : v < value)).length;
 }
 

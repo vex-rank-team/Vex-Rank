@@ -44,3 +44,21 @@ test('a team at an event missing either half falls back to what it has', () => {
   assert.equal(routeToHash('teamEvent', { number: '31260X' }, {}), '#/events');
   assert.deepEqual(hashToRoute('#/events/64604/teams'), { view: 'event', eventId: '64604' });
 });
+
+test('VEX IQ routes carry the program under an iq/ prefix', () => {
+  assert.equal(routeToHash('home', null, null, 'VIQRC'), '#/iq');
+  assert.equal(routeToHash('events', null, null, 'VIQRC'), '#/iq/events');
+  assert.equal(routeToHash('event', null, { id: 65767 }, 'VIQRC'), '#/iq/events/65767');
+  assert.equal(routeToHash('teamEvent', { number: '86995D' }, { id: 65767 }, 'VIQRC'), '#/iq/events/65767/teams/86995D');
+  assert.deepEqual(hashToRoute('#/iq'), { view: 'home', program: 'VIQRC' });
+  assert.deepEqual(hashToRoute('#/iq/teams/86995D'), { view: 'team', teamNumber: '86995D', program: 'VIQRC' });
+  assert.deepEqual(hashToRoute('#/iq/events/65767/teams/86995D'), { view: 'teamEvent', eventId: '65767', teamNumber: '86995D', program: 'VIQRC' });
+  assert.equal(hashToRoute('#/iq/nope'), null);
+});
+
+test('V5 hashes are unchanged by the program argument', () => {
+  for (const view of ['home', 'events', 'rankings', 'stats', 'teams']) {
+    assert.equal(routeToHash(view, null, null, 'V5RC'), routeToHash(view, null, null));
+  }
+  assert.equal(routeToHash('team', { number: '31260X' }, null, 'V5RC'), '#/teams/31260X');
+});

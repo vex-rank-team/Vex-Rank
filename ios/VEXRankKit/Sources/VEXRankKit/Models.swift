@@ -12,6 +12,8 @@ import Foundation
 
 public struct RankingsResponse: Codable, Sendable {
     public let rankings: [TeamRanking]
+    /// VEX IQ: when the published VIQCR ratings were computed.
+    public let asOf: String?
 
     /// Rankings in rank order, which is the order the rows appear to follow.
     ///
@@ -35,6 +37,11 @@ public struct RankingsResponse: Codable, Sendable {
     public let modelVersion: String?
     public let season: String?
     public let updatedAt: String?
+    /// "pending" while the VEX IQ rating is being written; absent for V5.
+    public let ratingStatus: String?
+    /// The program the server answered for. Absent from servers that predate
+    /// VEX IQ, which answer an IQ request with V5 rows.
+    public let program: String?
 }
 
 public struct FormEntry: Codable, Sendable, Hashable {
@@ -68,6 +75,16 @@ public struct TeamRanking: Codable, Sendable, Identifiable, Hashable {
     public let seasonId: Int?
     public let season: String?
     public let form: [FormEntry]?
+    /// VEX IQ (VIQCR) only. Provisional rows lack evidence in some component.
+    public let provisional: Bool?
+    public let provisionalReasons: [String]?
+    /// World rank among confirmed (non-provisional) teams; nil when provisional.
+    public let confirmedRank: Int?
+    /// Partner-adjusted consistency, described: "repeatable-positive", etc.
+    public let signal: String?
+    public let partners: Int?
+    /// Teamwork, driving, coding and consistency, each in rating points.
+    public let components: [String: ComponentScore]?
 
     /// The ranking list is ordered by `rating`, and the table shows `rating`.
     /// Kept as a named value so any future ordering change is one place, not
@@ -91,6 +108,10 @@ public struct TeamProfileResponse: Codable, Sendable {
     public let seasonGrades: [String: String]?
     public let modelVersion: String?
     public let loadedSeasonIds: [Int]?
+    /// The program the server answered for; see `RankingsResponse.program`.
+    public let program: String?
+    /// "pending" while the VEX IQ rating is being written.
+    public let ratingStatus: String?
 }
 
 /// The seasons this profile has results for, newest first - what the season
@@ -165,6 +186,8 @@ public struct TeamEventStanding: Codable, Sendable, Hashable {
     public let ap: Int?
     public let sp: Int?
     public let highScore: Int?
+    /// VEX IQ's average teamwork score, when the server passes it through.
+    public let averagePoints: Double?
 
     public var record: String { "\(wins)\u{2013}\(losses)\u{2013}\(ties)" }
 }
@@ -249,4 +272,10 @@ public struct SeasonSkills: Sendable, Hashable {
         self.programming = bestProgramming
         self.combined = byEvent.values.map { $0.driver + $0.programming }.max() ?? 0
     }
+}
+
+/// One VIQCR component of a team's rating.
+public struct ComponentScore: Codable, Sendable, Hashable {
+    public let points: Int
+    public let sd: Int?
 }

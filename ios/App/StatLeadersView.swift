@@ -7,9 +7,13 @@ import VEXRankKit
 @available(iOS 17.0, *)
 struct StatLeadersView: View {
     @Environment(\.vexTheme) private var theme
+    @Environment(\.program) private var program
     @State private var model = StatLeadersModel()
-    @State private var category = StatCategory.all[0]
+    /// Nil until the reader picks one: the first category differs by program.
+    @State private var chosen: StatCategory?
     @State private var country: String?
+
+    private var category: StatCategory { chosen ?? StatCategory.all(for: program)[0] }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,32 +23,16 @@ struct StatLeadersView: View {
         }
         .animation(.easeOut(duration: 0.35), value: model.state.isLoaded)
         .background(theme.page)
-        .task { await model.load() }
+        .task { await model.load(program: program) }
     }
 
     private var picker: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(StatCategory.all) { option in
-                        Button {
-                            category = option
-                            // A country that qualifies in one feed may not exist
-                            // in the other, which would silently empty the list.
-                            country = nil
-                        } label: {
-                            Text(option.id)
-                                .font(.footnote.weight(.semibold))
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 7)
-                                .background(option == category ? theme.accent : theme.surface)
-                                .foregroundStyle(option == category ? Color.white : Color.secondary)
-                                .clipShape(Capsule())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 16)
+            ChipBar(StatCategory.all(for: program), selected: category, label: \.id) { option in
+                chosen = option
+                // A country that qualifies in one feed may not exist in the
+                // other, which would silently empty the list.
+                country = nil
             }
 
             HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -56,7 +44,8 @@ struct StatLeadersView: View {
             }
             .padding(.horizontal, 16)
         }
-        .padding(.vertical, 12)
+        .padding(.top, 4)
+        .padding(.bottom, 12)
     }
 
     @ViewBuilder
@@ -89,9 +78,10 @@ struct StatLeadersView: View {
             } description: {
                 Text(message)
             } actions: {
-                Button("Retry") { Task { await model.load() } }
+                Button("Retry") { Task { await model.load(program: program) } }
                     .buttonStyle(.borderedProminent)
                     .tint(theme.accent)
+                    .foregroundStyle(theme.onAccent)
             }
         case .loaded:
             let rows = model.rank(category: category, country: country)
@@ -118,7 +108,7 @@ struct StatLeadersView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .refreshable { await model.load() }
+        .refreshable { await model.load(program: program) }
     }
 
     private func cell(index: Int, row: StatLeader) -> some View {
@@ -133,7 +123,7 @@ struct StatLeadersView: View {
                 Text(row.number).font(.headline)
                 Text(row.name).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
                 Text("\(row.context) · \(row.region)")
-                    .font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
+                    .font(.caption2).foregroundStyle(.subtle).lineLimit(1)
             }
 
             Spacer(minLength: 8)
@@ -165,17 +155,22 @@ final class StatLeadersModel {
     private let api = VEXRankAPI.shared
 
     @MainActor
-    func load() async {
-        state = .loading
+    func load(program: Program = .v5rc) async {
+        // A pull to refresh keeps the board on screen; only a first load, or a
+        // retry after a failure, shows the spinner. Swapping the list for a
+        // spinner mid-pull yanked the rows out from under the finger.
+        if !state.isLoaded { state = .loading }
         do {
             // Both feeds are needed before anything can rank, so they are
             // fetched concurrently rather than one after the other.
-            async let rankings = api.rankings()
+            // VEX IQ leaderboards are skills only: the rest need the rating.
+            async let rankings: RankingsResponse? = program.isIQ ? nil : api.rankings()
             async let skillsFeed = api.skills()
-            teams = try await rankings.rankings
+            teams = try await rankings?.rankings ?? []
             skills = try await skillsFeed.rankings
             state = .loaded
         } catch {
+            if state.isLoaded { return }
             state = .failed(error.localizedDescription)
         }
     }

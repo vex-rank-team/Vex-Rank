@@ -15,6 +15,19 @@ struct VEXRankApp: App {
     /// an assignment made as the view settles can be lost.
     @State private var tab = VEXRankApp.launchTab
     @State private var favourites = FavouriteTeams()
+    /// VEX IQ's own starred teams, kept apart so neither list shows a team the
+    /// program on screen cannot open.
+    @State private var iqFavourites = FavouriteTeams(key: "vexrank-favourite-teams-viqrc")
+    /// V5 or VEX IQ. `-vexrank-program VIQRC` on launch sets it, like any
+    /// stored setting, which is how the IQ screens are opened without a tap.
+    @AppStorage("vexrank-program") private var programID: String = Program.v5rc.rawValue
+    private var program: Program { Program.named(programID) }
+
+    init() {
+        // Before the first screen asks for anything, so a reader who left the
+        // app on VEX IQ does not first download the V5 tables.
+        VEXRankAPI.shared.use(Program.named(UserDefaults.standard.string(forKey: "vexrank-program")))
+    }
     /// `-about` opens the About sheet on launch, for checking it without a tap.
     @State private var showAbout = CommandLine.arguments.contains("-about")
     @State private var config = AppConfigStore()
@@ -132,8 +145,12 @@ struct VEXRankApp: App {
                 }
                 path.append(TeamRef(team, fromEvent: from))
             }
+            // A program is a different set of events and teams, so each tab
+            // starts again at its root, with fresh state, in the new one.
+            .id(programID)
             .sheet(isPresented: $showAbout) { AboutView() }
-            .environment(\.favouriteTeams, favourites)
+            .environment(\.program, program)
+            .environment(\.favouriteTeams, program.isIQ ? iqFavourites : favourites)
             .environment(\.appConfig, config)
             .environment(\.vexTheme, VEXTheme.named(themeID))
             .environment(\.numberFont, StrokeFont.named(numberFontID))
@@ -156,9 +173,30 @@ struct VEXRankApp: App {
         }
     }
 
+    /// Switching program clears every tab's stack and points the API at the
+    /// new program in the same step that rebuilds the screens. Done after the
+    /// fact - in an onChange - the rebuilt tabs would first be handed the old
+    /// stacks and could start fetching the old program.
+    private var programSelection: Binding<String> {
+        Binding(get: { programID }, set: { code in
+            guard code != programID else { return }
+            VEXRankAPI.shared.use(Program.named(code))
+            path = NavigationPath(); eventPath = NavigationPath()
+            statPath = NavigationPath(); teamsPath = NavigationPath()
+            programID = code
+        })
+    }
+
     private var themeMenu: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
+                // First, because it changes what every tab shows; the theme
+                // only changes how it looks.
+                Section("Program") {
+                    Picker("Program", selection: programSelection) {
+                        ForEach(Program.allCases) { Text($0.name).tag($0.rawValue) }
+                    }
+                }
                 Picker("Colour theme", selection: $themeID) {
                     ForEach(VEXTheme.all) { Text($0.name).tag($0.id) }
                 }
@@ -179,6 +217,7 @@ struct VEXRankApp: App {
             } label: {
                 Image(systemName: "circle.lefthalf.filled")
             }
+            .accessibilityLabel("Theme and settings")
         }
     }
 }

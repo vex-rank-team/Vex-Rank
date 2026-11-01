@@ -1,15 +1,20 @@
+import { PROGRAMS, programCode } from '@/lib/programs.mjs';
+
 const SKILLS_ROOT = 'https://events.vex.com/api/seasons';
-const ALLOWED_SEASONS = new Set(['197', '204']);
-const GRADES = ['High School', 'Middle School', 'Elementary School'];
+// The endpoint answers the younger IQ grade as "Elementary"; teams carry
+// "Elementary School", so rows are relabelled to match everything else.
+const GRADE_LABELS: Record<string, string> = { Elementary: 'Elementary School' };
 async function readCache(request:Request){try{return await (globalThis as any).caches?.default?.match(request)}catch{return undefined}}
 async function writeCache(request:Request,response:Response){try{await (globalThis as any).caches?.default?.put(request,response.clone())}catch{}}
 
 export async function GET(request: Request) {
-  const season = new URL(request.url).searchParams.get('season') ?? '204';
-  if (!ALLOWED_SEASONS.has(season)) return Response.json({ error: 'Unsupported season.' }, { status: 400 });
+  const params = new URL(request.url).searchParams;
+  const program = PROGRAMS[programCode(params.get('program'))];
+  const season = params.get('season') ?? String(program.currentSeason);
+  if (!program.skillsSeasons.includes(season)) return Response.json({ error: 'Unsupported season.' }, { status: 400 });
   const cached=await readCache(request);if(cached)return cached;
 
-  const payloads = await Promise.all(GRADES.map(async grade => {
+  const payloads = await Promise.all(program.skillsGrades.map(async grade => {
     const url = `${SKILLS_ROOT}/${season}/skills?grade_level=${encodeURIComponent(grade)}`;
     const response = await fetch(url, { headers: { Accept: 'application/json' } });
     if (!response.ok) return [];
@@ -29,7 +34,7 @@ export async function GET(request: Request) {
         organization: entry.team?.organization || '',
         region: [entry.team?.region, entry.team?.country].filter(Boolean).join(', ') || 'Unassigned',
         country: entry.team?.country || 'Unassigned',
-        grade: entry.team?.gradeLevel || 'Unknown',
+        grade: GRADE_LABELS[entry.team?.gradeLevel] ?? (entry.team?.gradeLevel || 'Unknown'),
         autoSkills: Number(entry.scores?.programming ?? 0),
         driverSkills: Number(entry.scores?.driver ?? 0),
         combinedSkills: combined,
@@ -38,6 +43,6 @@ export async function GET(request: Request) {
   }
 
   const rankings = [...best.values()].sort((a, b) => b.combinedSkills - a.combinedSkills).map((team, index) => ({ ...team, skillsRank: index + 1 }));
-  const response=Response.json({ rankings, season: season === '197' ? '2025–26 Push Back' : '2026–27 Override' }, { headers: { 'Cache-Control': 'public, max-age=900, s-maxage=1800, stale-while-revalidate=7200' } });
+  const response=Response.json({ rankings, season: (program.seasons as Record<string, { label: string }>)[season]?.label ?? season }, { headers: { 'Cache-Control': 'public, max-age=900, s-maxage=1800, stale-while-revalidate=7200' } });
   await writeCache(request,response);return response;
 }
