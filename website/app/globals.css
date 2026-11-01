@@ -692,3 +692,79 @@ button, a, [role="link"] { -webkit-tap-highlight-color: transparent; }
 /* Strength hexagon grows out from its centre on first paint. The global
    reduced-motion rule above removes the transition, leaving the final shape. */
 .strength-shape { transition: transform .9s cubic-bezier(.2, .8, .2, 1); }
+
+/* Paka, the pixel cat (components/paka). Square corners and a stepped shadow
+   keep the boxes in the sprite's pixel style; colours follow the theme. */
+.paka-box {
+  padding: 10px 12px;
+  background: var(--c-surface-2);
+  border: 2px solid rgba(255, 255, 255, .16);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, .45);
+  image-rendering: pixelated;
+}
+/* A native <dialog> brings its own centring and colours; Paka's sits above the cat. */
+.paka-panel { inset: auto; margin: 0; color: inherit; }
+.paka-panel-above { bottom: 100%; margin-bottom: 8px; }
+.paka-panel-below { top: 100%; margin-top: 8px; }
+.paka-panel-left { left: 0; }
+.paka-panel-right { right: 0; }
+.paka-mood { display: block; width: 100%; height: 6px; appearance: none; border: 0; border-radius: 999px; overflow: hidden; background: rgba(255, 255, 255, .1); }
+.paka-mood::-webkit-progress-bar { background: rgba(255, 255, 255, .1); }
+.paka-mood::-webkit-progress-value { background: var(--c-accent); }
+.paka-mood::-moz-progress-bar { background: var(--c-accent); }
+.paka-chip {
+  border: 1px solid rgba(255, 255, 255, .16);
+  background: rgba(255, 255, 255, .04);
+  padding: 3px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, .8);
+  text-align: left;
+}
+.paka-chip:hover, .paka-chip:focus-visible { border-color: var(--c-accent); color: #fff; outline: none; }
+.paka-cat { transition: transform 120ms steps(2); }
+/* The outline is near-black, like the page; a faint halo keeps the cat's edge. */
+.paka-cat svg, .paka-box svg { filter: drop-shadow(0 0 1px rgba(255, 255, 255, .45)); }
+.paka-cat:hover:not(.paka-walk):not(.paka-dragging) { translate: 0 -2px; }
+.paka-walk svg { animation: paka-bob 320ms steps(2) infinite; }
+.paka-cat { cursor: grab; touch-action: none; }
+.paka-dragging { cursor: grabbing; }
+.paka-hop svg { animation: paka-hop 450ms steps(4); }
+.paka-purr svg { animation: paka-purr 110ms steps(2) infinite; }
+.paka-held svg { transform: translateY(-8px); }
+.paka-drop svg { animation: paka-drop 320ms steps(3); }
+/* The Ask button is quiet until the reader is near Paka. */
+.paka-ask { opacity: .45; transition: opacity 150ms; background: var(--c-surface-2); border: 2px solid rgba(255, 255, 255, .16); box-shadow: 2px 2px 0 rgba(0, 0, 0, .45); }
+.paka:hover .paka-ask, .paka-ask:focus-visible, .paka-ask-open { opacity: 1; }
+.paka-ask-open { border-color: var(--c-accent); }
+/* Click tricks (components/paka, pickTrick). steps() keeps them pixel-jerky. */
+.paka-spin svg { animation: paka-spin 640ms steps(1); }
+.paka-roll svg { animation: paka-roll 760ms steps(8); transform-origin: 50% 70%; }
+.paka-stretch svg { animation: paka-stretch 1000ms steps(3); transform-origin: 50% 100%; }
+.paka-sneeze svg { animation: paka-sneeze 520ms steps(4); transform-origin: 50% 100%; }
+.paka-chase svg { animation: paka-spin 320ms steps(1) infinite; }
+.paka-chirp {
+  translate: -50% 0;
+  padding: 1px 6px;
+  background: var(--c-surface-2);
+  border: 2px solid rgba(255, 255, 255, .16);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, .45);
+  font: 700 11px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #fff;
+  animation: paka-chirp 1.1s steps(4) forwards;
+}
+@keyframes paka-spin { 25% { transform: scaleX(-1); } 50% { transform: scaleX(1); } 75% { transform: scaleX(-1); } }
+@keyframes paka-roll { to { transform: rotate(360deg); } }
+@keyframes paka-stretch { 30%, 70% { transform: scale(1.18, .78); } }
+@keyframes paka-sneeze { 30% { transform: scale(1.06, .9); } 45% { transform: translate(2px, -7px); } 70% { transform: translate(0, -2px); } }
+@keyframes paka-chirp { 0% { opacity: 0; transform: translateY(4px); } 20%, 80% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-6px); } }
+@keyframes paka-hop { 40% { transform: translateY(-10px); } 70% { transform: translateY(-4px); } }
+@keyframes paka-purr { 50% { transform: translateX(1px); } }
+@keyframes paka-drop { 0% { transform: translateY(-8px); } 60% { transform: translateY(1px); } }
+.paka-asleep svg { animation: paka-breathe 2.4s steps(2) infinite; }
+.paka-heart { animation: paka-heart 1.2s steps(6) forwards; }
+.paka-z { animation: paka-z 2.4s steps(4) infinite; }
+@keyframes paka-bob { 50% { transform: translateY(-3px); } }
+@keyframes paka-breathe { 50% { transform: translateY(1px); } }
+@keyframes paka-heart { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, -36px); } }
+@keyframes paka-z { 0% { opacity: 0; transform: translateY(4px); } 50% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }

@@ -3,9 +3,14 @@ import assert from 'node:assert/strict';
 import { routeToHash, hashToRoute } from '../lib/routes.mjs';
 
 test('top-level views round-trip through the hash', () => {
-  for (const view of ['home', 'events', 'rankings', 'stats', 'teams']) {
+  for (const view of ['home', 'events', 'rankings', 'teams']) {
     assert.deepEqual(hashToRoute(routeToHash(view, null, null)), { view });
   }
+});
+
+test('old Stat leaders links lead to Rankings while the section is hidden', () => {
+  assert.equal(routeToHash('stats', null, null), '#/rankings');
+  assert.deepEqual(hashToRoute('#/stats'), { view: 'rankings' });
 });
 
 test('detail views carry their identifier both ways', () => {

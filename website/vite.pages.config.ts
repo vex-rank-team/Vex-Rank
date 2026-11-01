@@ -11,7 +11,7 @@ const directToken=process.env.VEX_DIRECT_TOKEN||loadEnv('production',fileURLToPa
 
 export default defineConfig({
   root:fileURLToPath(new URL('./static-site',import.meta.url)),
-  base:'/Vex-Rank/',
+  base:'/',
   publicDir:fileURLToPath(new URL('./public',import.meta.url)),
   resolve:{alias:{'@':fileURLToPath(new URL('.',import.meta.url))}},
   plugins:[react()],
@@ -19,7 +19,8 @@ export default defineConfig({
   css:{postcss:{plugins:[tailwindcss()]}},
   define:{
     __VEX_API_BASE__:JSON.stringify(process.env.VEX_API_BASE || 'https://vexrank-api-test.qiansteven54.workers.dev'),
-    __VEX_ASSET_BASE__:JSON.stringify('/Vex-Rank/'),
+    // vex-rank.com serves the site from the domain root.
+    __VEX_ASSET_BASE__:JSON.stringify('/'),
     __VEX_DIRECT_TOKEN__:JSON.stringify(directToken),
   },
   build:{outDir:'../dist-pages',emptyOutDir:true},
