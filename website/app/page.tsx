@@ -719,7 +719,7 @@ function useIqSkills(seasonId:string){
  * as the specification asks.
  */
 const SIGNALS:Record<string,string>={'repeatable-positive':'Repeatable contribution','partner-explained-upside':'Partners explain upside','variable':'Variable contribution','mixed':'Mixed evidence','insufficient-evidence':'Not enough partner evidence'};
-function IQRatingTable({ teams, meta, openTeam }: { teams:any[]; meta:any; openTeam:(team:any)=>void }) {
+function IQRatingTable({ teams, meta, openTeam, allTeamsCount }: { teams:any[]; meta:any; allTeamsCount:number; openTeam:(team:any)=>void }) {
   const [showProvisional,setShowProvisional]=useState(false);
   const [visibleCount,setVisibleCount]=useState(100);
   const shown=showProvisional?teams:teams.filter((team:any)=>!team.provisional);
@@ -739,7 +739,7 @@ function IQRatingTable({ teams, meta, openTeam }: { teams:any[]; meta:any; openT
       <TableCell className="hidden text-white/45 md:table-cell">{team.region}</TableCell>
       <TableCell className="hidden text-right font-mono text-xs text-white/55 lg:table-cell">{part(team,'teamwork')} · {part(team,'driving')} · {part(team,'coding')} · {part(team,'consistency')}</TableCell>
       <TableCell className="px-5 text-right font-mono text-lg font-semibold">{team.rating}<small className="ml-2 text-xs text-white/50">±{team.confidence}</small></TableCell>
-    </TableRow>)}</TableBody></Table></div>:<div className="mt-3"><Empty text={teams.length?"No team has enough evidence for a confirmed rating yet. Include provisional teams to see every rated team.":"No VEX IQ teams are rated for this season yet."} /></div>}
+    </TableRow>)}</TableBody></Table></div>:<div className="mt-3"><Empty text={allTeamsCount&&!teams.length?"No teams match these filters. Try another grade, country, event region or search.":teams.length?"No team has enough evidence for a confirmed rating yet. Include provisional teams to see every rated team.":"No VEX IQ teams are rated for this season yet."} /></div>}
     {visibleCount<shown.length&&<LoadMore count={visibleCount} onReach={()=>setVisibleCount((count:number)=>count+250)} />}
     <p className="mt-3 text-xs leading-relaxed text-white/45">VIQCR is a Vex-Rank model, not an official VEX ranking, and is not comparable with V5 VCR. It weighs teamwork contribution 55%, driving and coding skills 17.5% each, and partner-adjusted consistency 10%, and subtracts its own uncertainty, so teams with little evidence score lower. Provisional teams lack two teamwork events, three partners, both skills modes or recent consistency evidence.</p>
   </div>;
@@ -751,29 +751,51 @@ function IQRankingsView({ teams, meta, openTeam, savedState, setSavedState }: { 
   const [season,setSeason]=useState(seasonLabels.includes(savedState.season)?savedState.season:seasonLabels[0]);
   const [grade,setGrade]=useState(gradeTabs.includes(savedState.grade)?savedState.grade:'All teams');
   const [country,setCountry]=useState(savedState.country??'All');
+  const [region,setRegion]=useState(savedState.region??'All');
   const [search,setSearch]=useState(savedState.search??'');
   const [visibleCount,setVisibleCount]=useState(savedState.visibleCount??100);
   const seasonId=IQ_SKILLS_SEASONS.find(entry=>entry.label===season)?.id??String(PROGRAMS.VIQRC.currentSeason);
+  const [ratingRetry,setRatingRetry]=useState(0);
+  const [ratingResult,setRatingResult]=useState<{key:string;payload?:any;error?:string}|null>(null);
+  const ratingKey=`${seasonId}:${ratingRetry}`;
+  useEffect(()=>{
+    if(seasonId===String(PROGRAMS.VIQRC.currentSeason))return;
+    let active=true;
+    siteFetch(withProgram(`/api/rankings?season=${seasonId}&data=v49`,'VIQRC'),{signal:AbortSignal.timeout(60000)})
+      .then(response=>response.ok?response.json():Promise.reject(new Error('IQ ratings request failed')))
+      .then(payload=>{if(active)setRatingResult({key:ratingKey,payload})})
+      .catch(error=>{if(active)setRatingResult({key:ratingKey,error:describeFetchError(error,'IQ ratings could not be loaded. Please retry.')})});
+    return()=>{active=false};
+  },[ratingKey,seasonId]);
+  const historicalRating=ratingResult?.key===ratingKey?ratingResult:null;
+  const ratingMeta=seasonId===String(PROGRAMS.VIQRC.currentSeason)?meta:historicalRating?.payload;
+  const ratingRows:any[]=seasonId===String(PROGRAMS.VIQRC.currentSeason)?teams:(historicalRating?.payload?.rankings??[]);
+  const ratingLoading=seasonId!==String(PROGRAMS.VIQRC.currentSeason)&&!historicalRating;
+  const ratingError=historicalRating?.error??'';
   const skills=useIqSkills(seasonId);
-  useEffect(()=>setVisibleCount(100),[season,grade,country,search]);
-  useEffect(()=>setSavedState({season,country,region:'All',grade,search,visibleCount}),[season,country,grade,search,visibleCount,setSavedState]);
+  useEffect(()=>setVisibleCount(100),[season,grade,country,region,search]);
+  useEffect(()=>setSavedState({season,country,region,grade,search,visibleCount}),[season,country,region,grade,search,visibleCount,setSavedState]);
   const all=skills.rows??[];
-  const countries=['All',...Array.from(new Set(all.map((team:any)=>team.country).filter(Boolean))).sort((a:any,b:any)=>a.localeCompare(b))] as string[];
-  const filtered=all.filter((team:any)=>(grade==='All teams'||team.grade===grade)&&(country==='All'||team.country===country)&&(!search||`${team.number} ${team.name}`.toLowerCase().includes(search.toLowerCase())));
+  const regionOf=(team:any)=>team.eventRegion??String(team.region??'Unassigned').split(',')[0].trim();
+  const countries=['All',...Array.from(new Set([...ratingRows,...all].map((team:any)=>team.country).filter(Boolean))).sort((a:any,b:any)=>a.localeCompare(b))] as string[];
+  const regions=['All',...Array.from(new Set([...ratingRows,...all].filter((team:any)=>country==='All'||team.country===country).map(regionOf).filter(Boolean))).sort((a:any,b:any)=>a.localeCompare(b))] as string[];
+  const matches=(team:any)=>(grade==='All teams'||team.grade===grade)&&(country==='All'||team.country===country)&&(region==='All'||regionOf(team)===region)&&(!search||`${team.number} ${team.name}`.toLowerCase().includes(search.toLowerCase()));
+  const filtered=all.filter(matches);
+  const filteredRatings=ratingRows.filter(matches);
   const visible=filtered.slice(0,visibleCount);
   // Only ratings the server marked as IQ count: one that predates IQ support
   // answers this request with V5 rows.
-  const rated=meta?.program==='VIQRC'&&meta?.ratingStatus!=='pending'&&teams.length>0;
+  const rated=ratingMeta?.program==='VIQRC'&&ratingMeta?.ratingStatus!=='pending'&&ratingRows.length>0;
   const head='text-[10px] font-semibold uppercase tracking-wider text-white/50';
   return <section className="mx-auto max-w-[1440px] px-5 py-10 lg:px-8"><PageHead eyebrow="VEX IQ Competitive Rating" title="World team ranking" copy={rated?"VIQCR rates each team on its share of teamwork scores, its driving and autonomous coding skills, and how consistently it contributes across different partners. Official world skills standings follow below.":"Teamwork ratings for VEX IQ are on their way. Meanwhile, compare teams on the official world skills standings, by grade, country and season."} />
-    {rated?<IQRatingTable teams={teams} meta={meta} openTeam={openTeam} />:<RatingComingSoon />}
-    <div className="mt-12 flex items-baseline justify-between gap-4 border-b border-white/[.08] pb-3"><h2 className="font-display text-2xl">World skills standings</h2><p className="shrink-0 text-[11px] italic text-white/45">Official · Event.VEX</p></div>
     <div className="mt-5 flex flex-wrap gap-x-7 gap-y-1 border-b border-white/[.08]">{gradeTabs.map(level=><button key={level} onClick={()=>setGrade(level)} aria-pressed={grade===level} className={`-mb-px min-h-10 border-b-2 pb-2.5 pt-1 text-sm transition-colors ${grade===level?'border-[var(--c-accent)] text-white':'border-transparent text-white/55 hover:text-white/75'}`}>{level}</button>)}</div>
-    <div className="mt-5 grid gap-x-6 gap-y-4 md:grid-cols-3"><FilterSelect label="Season" value={season} options={seasonLabels} onChange={value=>{setSeason(value);setCountry('All')}} /><FilterSelect label="Country" allLabel="All countries" value={country} options={countries} onChange={setCountry} /><FilterInput icon={<Search />} value={search} onChange={setSearch} placeholder="Search team number or name" /></div>
+    <div className="mt-5 grid gap-x-6 gap-y-4 md:grid-cols-2 xl:grid-cols-4"><FilterSelect label="Season" value={season} options={seasonLabels} onChange={value=>{setSeason(value);setCountry('All');setRegion('All')}} /><FilterSelect label="Country" allLabel="All countries" value={country} options={countries} onChange={value=>{setCountry(value);setRegion('All')}} /><FilterSelect label="Event region" allLabel="All event regions" value={region} options={regions} onChange={setRegion} /><FilterInput icon={<Search />} value={search} onChange={setSearch} placeholder="Search team number or name" /></div>
+    {ratingLoading?<p role="status" className="mt-6 text-sm text-white/55">Loading VIQCR rankings…</p>:ratingError?<LoadError message={ratingError} retry={()=>setRatingRetry(value=>value+1)} />:rated?<IQRatingTable teams={filteredRatings} allTeamsCount={ratingRows.length} meta={ratingMeta} openTeam={openTeam} />:<RatingComingSoon />}
+    <div className="mt-12 flex items-baseline justify-between gap-4 border-b border-white/[.08] pb-3"><h2 className="font-display text-2xl">World skills standings</h2><p className="shrink-0 text-[11px] italic text-white/45">Official · Event.VEX</p></div>
     <div className="mt-4 grid gap-3 sm:grid-cols-3"><Metric label="Teams listed" value={skills.rows?String(filtered.length):'…'} detail={grade==='All teams'?'Middle and Elementary School':grade} /><Metric label="Top combined score" value={filtered[0]?String(filtered[0].combinedSkills):'…'} detail={filtered[0]?`${filtered[0].number} · driver ${filtered[0].driverSkills} + coding ${filtered[0].autoSkills}`:'No teams listed'} /><Metric label="Season" value={season.split(' ')[0]} detail={season.split(' ').slice(1).join(' ')} /></div>
     {skills.error&&<LoadError message={skills.error} retry={skills.retry} />}
     <div className="mt-6 overflow-hidden border border-white/10 bg-[var(--c-surface)]"><Table><TableHeader><TableRow className="border-white/10 hover:bg-transparent"><TableHead className={`w-20 px-5 ${head}`}>Rank</TableHead><TableHead className={head}>Team</TableHead><TableHead className={head}>Region</TableHead><TableHead className={head}>Grade</TableHead><TableHead className={`text-right ${head}`}>Driver</TableHead><TableHead className={`text-right ${head}`}>Coding</TableHead><TableHead className={`px-5 text-right ${head}`}>Combined</TableHead></TableRow></TableHeader><TableBody>{!skills.rows&&!skills.error&&<SkeletonRows columns={7} />}{visible.map((team:any,index:number)=><TableRow key={team.number} tabIndex={0} role="link" onKeyDown={event=>{if(event.key==='Enter')openTeam(team)}} onClick={()=>openTeam(team)} className="cursor-pointer border-white/[.07] hover:bg-white/[.04]"><TableCell className="px-5"><span className={`text-lg font-semibold ${index<3?'text-[var(--c-accent)]':'text-white/55'}`}>#{index+1}</span></TableCell><TableCell><b>{team.number}</b><small className="ml-3 text-white/50">{team.name}</small></TableCell><TableCell className="text-white/45">{team.region}</TableCell><TableCell className="text-white/45">{team.grade}</TableCell><TableCell className="text-right font-mono text-white/65">{team.driverSkills}</TableCell><TableCell className="text-right font-mono text-white/65">{team.autoSkills}</TableCell><TableCell className="px-5 text-right font-mono text-lg font-semibold">{team.combinedSkills}</TableCell></TableRow>)}</TableBody></Table></div>
-    {skills.rows&&all.length>0&&!filtered.length&&<div className="mt-4"><Empty text="No teams match these filters. Try another grade, country or search." /></div>}
+    {skills.rows&&all.length>0&&!filtered.length&&<div className="mt-4"><Empty text="No teams match these filters. Try another grade, country, event region or search." /></div>}
     {visibleCount<filtered.length&&<LoadMore count={visibleCount} onReach={()=>setVisibleCount((count:number)=>count+250)} />}
     <p className="mt-4 text-xs text-white/45">Skills scores come directly from the official Event.VEX world skills standings: each team’s best combined driver and autonomous coding run this season.</p>
   </section>;
