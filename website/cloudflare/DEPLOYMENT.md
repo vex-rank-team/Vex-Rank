@@ -2,7 +2,7 @@
 
 ## Status
 
-- API is live: https://vexrank-api-test.vexrank-eason.workers.dev
+- API is live: https://vexrank-api-test.qiansteven54.workers.dev
 - Worker: `vexrank-api-test`, Cloudflare Workers Free.
 - Database: `vexrank-test`, Cloudflare D1, ENAM region.
 - Website build is prepared for https://easonli29.github.io/Vex-Rank/.

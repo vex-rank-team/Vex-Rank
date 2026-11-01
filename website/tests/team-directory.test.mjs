@@ -25,3 +25,20 @@ test('locations include inactive-only countries and dependent regions',()=>{
   assert.deepEqual(directoryLocations(teams,'Iceland').regions,['Capital']);
 });
 
+
+test('an IQ request answered with the V5 file is refused', async () => {
+  const { directoryMatchesProgram } = await import('../lib/team-directory.mjs');
+  // What the pre-IQ server sends for ?program=VIQRC: the V5 file, no program field.
+  const v5File = { asOf: '2026-10-01T00:00:00.000Z', total: 1, teams: [{ number: '2A' }] };
+  assert.equal(directoryMatchesProgram(v5File, 'VIQRC'), false);
+  assert.equal(directoryMatchesProgram(v5File, 'V5RC'), true, 'V5 files predate the field and stay valid');
+  assert.equal(directoryMatchesProgram(undefined, 'VIQRC'), false);
+});
+
+test('a list marked VIQRC is accepted for IQ and refused for V5', async () => {
+  const { directoryMatchesProgram } = await import('../lib/team-directory.mjs');
+  const iqFile = { program: 'VIQRC', total: 1, teams: [{ number: '86995D' }] };
+  assert.equal(directoryMatchesProgram(iqFile, 'VIQRC'), true);
+  assert.equal(directoryMatchesProgram(iqFile, 'V5RC'), false);
+  assert.equal(directoryMatchesProgram({ program: 'V5RC', teams: [] }, 'V5RC'), true);
+});

@@ -1,0 +1,12 @@
+{
+  "currentSeason": 204,
+  "program": "V5RC",
+  "eventCacheSeconds": 30,
+  "directoryCacheSeconds": 3600,
+  "defaultCacheSeconds": 120,
+  "flags": {},
+  "update": {
+    "latestBuild": 0,
+    "minimumBuild": 0
+  }
+}

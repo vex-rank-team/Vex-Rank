@@ -1,0 +1,132 @@
+name: Weekly ratings
+
+# Rebuilds the current season's ratings from every completed event - V5 VCR
+# (the live route can afford only the latest 36 events) and VEX IQ VIQCR 1.1 -
+# and deploys them to the Worker. See website/cloudflare/TEAM-DIRECTORY.md ("Refresh") and
+# docs/viqrc-vcr-handoff.md.
+#
+# Repository secrets:
+#   ROBOT_EVENTS_API_TOKEN  events.vex token (the build reads official results)
+#   CLOUDFLARE_API_TOKEN    Cloudflare token allowed to edit Workers (to deploy)
+on:
+  schedule:
+    # Mondays, after the weekend's events. Off the hour: GitHub delays
+    # scheduled runs that start on it.
+    - cron: '23 9 * * 1'
+  workflow_dispatch:
+    inputs:
+      refresh:
+        description: Refetch every event (only after upstream results were corrected)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Never two deploys at once, from this workflow or a manual run of it.
+concurrency:
+  group: vexrank-worker-deploy
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: website
+    env:
+      VEXRANK_API_BASE: https://vexrank-api-test.qiansteven54.workers.dev
+      # ~40 official requests a minute, leaving most of the token's 100 to the
+      # Worker that serves readers from the same token.
+      IQ_BUILD_INTERVAL_MS: '1500'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: website/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+
+      - name: Check the secrets are set
+        env:
+          ROBOT_EVENTS_API_TOKEN: ${{ secrets.ROBOT_EVENTS_API_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          test -n "$ROBOT_EVENTS_API_TOKEN" || { echo "::error::Add the ROBOT_EVENTS_API_TOKEN repository secret."; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Add the CLOUDFLARE_API_TOKEN repository secret."; exit 1; }
+
+      # Finished events never change, so last week's pages are reused and only
+      # new events are fetched.
+      - name: Restore cached event pages
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            website/work/iq-pages-*
+            website/work/v5-pages-*
+          key: season-pages-${{ github.run_id }}
+          restore-keys: season-pages-
+
+      # A deploy replaces every file the Worker serves, so start from all of them.
+      - name: Download what the Worker serves now
+        run: node scripts/fetch-deployed-assets.mjs
+
+      - name: Build V5 rankings (every completed event)
+        env:
+          ROBOT_EVENTS_API_TOKEN: ${{ secrets.ROBOT_EVENTS_API_TOKEN }}
+        run: node scripts/build-v5-rankings.mjs ${{ inputs.refresh && '--refresh' || '' }}
+
+      - name: Build VIQCR ratings
+        env:
+          ROBOT_EVENTS_API_TOKEN: ${{ secrets.ROBOT_EVENTS_API_TOKEN }}
+        run: node scripts/build-iq-ratings.mjs ${{ inputs.refresh && '--refresh' || '' }}
+
+      # Saved even when the build stopped at its request budget, so the next
+      # run carries on instead of starting over.
+      - name: Save cached event pages
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            website/work/iq-pages-*
+            website/work/v5-pages-*
+          key: season-pages-${{ github.run_id }}
+
+      - name: Test
+        run: node --test tests/*.test.mjs
+
+      - name: Check the new ratings against the live ones
+        run: node scripts/check-ratings.mjs
+
+      - name: Check nothing the Worker serves would be lost
+        run: node scripts/check-deploy-assets.mjs
+
+      - name: Remember the live version
+        id: live
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          version=$(node node_modules/wrangler/bin/wrangler.js deployments status --config cloudflare/wrangler.json --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const j=JSON.parse(s);process.stdout.write(j.versions.find(v=>v.percentage===100)?.version_id??"")})')
+          test -n "$version" || { echo "::error::Could not read the live version, so a rollback would be impossible. Not deploying."; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy
+        id: deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node node_modules/wrangler/bin/wrangler.js deploy --config cloudflare/wrangler.json
+
+      - name: Smoke test the deployed Worker
+        run: |
+          sleep 15
+          node scripts/smoke-test.mjs
+
+      - name: Roll back if the deployed Worker failed its checks
+        if: failure() && steps.deploy.outcome == 'success'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: node node_modules/wrangler/bin/wrangler.js rollback ${{ steps.live.outputs.version }} --config cloudflare/wrangler.json --message "Weekly ratings run ${{ github.run_id }} failed its smoke test" --yes
