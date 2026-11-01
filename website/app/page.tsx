@@ -12,6 +12,7 @@ import { assetUrl, siteFetch } from '@/lib/client-fetch';
 import { bracketRound } from '@/lib/bracket';
 import { routeToHash, hashToRoute } from '@/lib/routes.mjs';
 import PakaLoader from '@/components/paka';
+import { version } from '../package.json';
 import { vexCountries, vexEventRegions, eventRegionsForCountry } from '@/lib/event-regions.mjs';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
@@ -455,7 +456,7 @@ export default function Home() {
     {view === 'team' && <TeamView key={`${selectedTeam.number}:${selectedTeam.seasonId??selectedTeam.season??''}`} team={selectedTeam} goBack={() => go(teamReturnView)} backLabel={teamReturnView==='rankings'?'rankings':teamReturnView==='stats'?'stat leaders':teamReturnView==='events'||teamReturnView==='event'?'event':'teams'} openEvent={openEvent} openTeamAtEvent={openTeamAtEvent} />}
     </div>
 
-    <footer className="mt-16 border-t border-white/10 bg-[var(--c-chrome)]"><div className="mx-auto flex max-w-[1440px] flex-col gap-5 px-5 py-8 text-xs text-white/50 sm:flex-row sm:items-center lg:px-8"><AppLogo /><p>Independent {program} analytics using official Event.VEX results.</p><p className="sm:ml-auto">{isIQ(program)?'VEX IQ · 2026–27 Level Up':'VCR model · 2026–27 season'} · <a href={assetUrl('/privacy.html')} className="underline-offset-2 hover:text-white hover:underline">Privacy</a></p>{/* 55288A is a V5 team, so its badge always opens the V5 profile. */}<TeamBadge onOpen={() => { switchProgram('V5RC'); openTeam({ number: '55288A' }, 'V5RC'); }} /></div><p className="mx-auto max-w-[1440px] border-t border-white/10 px-5 py-4 text-[11px] leading-relaxed text-white/50 lg:px-8">VEX-Rank is not affiliated with VEX Robotics and is not a VEX product. Team, event and match data comes from the events.vex.com API. Ratings and statistics are calculated by VEX-Rank and are not official.</p></footer>
+    <footer className="mt-16 border-t border-white/10 bg-[var(--c-chrome)]"><div className="mx-auto flex max-w-[1440px] flex-col gap-5 px-5 py-8 text-xs text-white/50 sm:flex-row sm:items-center lg:px-8"><AppLogo /><p>Independent V5RC analytics using official Event.VEX results.</p><p className="sm:ml-auto">VCR model · 2026–27 season · <span title="Website version, see CHANGELOG.md">v{version}</span></p></div><p className="mx-auto max-w-[1440px] border-t border-white/10 px-5 py-4 text-[11px] leading-relaxed text-white/40 lg:px-8">VEX-Rank is not affiliated with VEX Robotics and is not a VEX product. Team, event and match data comes from the events.vex.com API. Ratings and statistics are calculated by VEX-Rank and are not official.</p></footer>
     {/* Paka, the pixel cat: desktop only, loaded once the page is idle. */}
     <PakaLoader view={view} selectedTeam={selectedTeam} selectedEvent={selectedEvent} teamRows={teamRows}
       eventRows={homeEvents.length?homeEvents:eventExtras.season==='2026–27: Override'?eventRows:[]}
