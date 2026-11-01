@@ -1,4 +1,5 @@
 import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
+import { confidenceFor } from '../lib/vcr-scoring.mjs';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { processCompletedEvent, VCR_VERSION } from '../lib/vcr3.mjs';
@@ -7,7 +8,7 @@ import { historicalMatches } from '../lib/archive-matches.mjs';
 // Run from website/: node scripts/rebuild-season-archives.mjs 197 [190 181 173].
 // Downloads are resumable; publishing the generated assets is a separate step.
 // Uses the existing public competition-data API; its server retains the API credential.
-const api = 'https://vexrank-api-test.vexrank-eason.workers.dev';
+const api = 'https://vexrank-api-test.qiansteven54.workers.dev';
 const seasons = {197:['2025–26 Push Back','2026-06-01','2025-26'],190:['2024–25 High Stakes','2025-06-01','2024-25'],181:['2023–24 Over Under','2024-06-01','2023-24'],173:['2022–23 Spin Up','2023-06-01','2022-23']};
 const selected = process.argv.slice(2).map(Number);
 if (!selected.length || selected.some(id=>!seasons[id])) throw new Error('Specify season IDs: 197 190 181 173');
@@ -85,7 +86,7 @@ for(const season of selected) {
     // Decay event deltas at a fixed season end (75-day half-life), not today's date.
     // This affects leaderboard display only; replay state retains undecayed ratings.
     const rating=1500+history.reduce((sum,h)=>sum+h.rawChange*2**(-Math.max(0,(Date.parse(end)-Date.parse(h.eventDate))/86400000)/75),0);
-    const confidence=Math.max(25,Math.round(120/Math.sqrt(Math.max(1,t.matches/4))));
+    const confidence=confidenceFor(t.matches);
     return {id:t.id,number:info.number??t.number,name:info.name??t.number,region:[info.location?.region,info.location?.country].filter(Boolean).join(', ')||'Unassigned',country:info.location?.country??'Unassigned',rating:Math.round(rating),displayedStrength:rating-confidence,confidence,change:history.at(-1)?.change??0,record:`${t.wins}–${t.losses}–${t.ties}`,matches:t.matches,events:t.events.size,opr:t.pointsFor/t.matches/2,dpr:t.pointsAgainst/t.matches/2,ccwm:(t.pointsFor-t.pointsAgainst)/t.matches/2,auto:0,ase:0,skills:0,form:history.slice(-5),grade:overrides[season]?.[info.number??t.number]??info.grade??'Unknown',organization:info.organization??'',seasonId:season,season:label};
   }).sort((a,b)=>b.displayedStrength-a.displayedStrength||a.number.localeCompare(b.number)).map((t,i)=>({...t,rank:i+1}));
   if(!rankings.length||rankings.some(t=>!Number.isFinite(t.rating)))throw new Error('Invalid rebuilt rankings');

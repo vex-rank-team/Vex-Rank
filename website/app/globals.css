@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..800;1,300..800&family=Source+Serif+4:opsz,wght@8..60,400..700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:ital,wght@0,300..800;1,300..800&family=Source+Serif+4:opsz,wght@8..60,400..700&family=Caveat:wght@500..700&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
@@ -83,7 +83,7 @@ h1, h2, h3 { overflow-wrap: anywhere; }
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: #ed2b3a;
+  background: var(--c-accent);
 }
 
 *::-webkit-scrollbar-corner {
@@ -97,6 +97,33 @@ h1, h2, h3 { overflow-wrap: anywhere; }
   --font-claude-sans: 'Styrene B', 'Styrene A', 'Hanken Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-claude-serif: 'Copernicus', 'Tiempos Headline', 'Tiempos Text', 'Source Serif 4', ui-serif, Georgia, 'Times New Roman', serif;
   --font-claude-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+  /* Team numbers on a profile are signed rather than set: Caveat is a
+     handwriting face whose digits stay legible, which most scripts do not -
+     team numbers are alphanumeric (31260X) and cannot afford a decorative
+     figure set. */
+  --font-signature: 'Caveat', 'Segoe Script', 'Bradley Hand', cursive;
+
+  /* Palette ---------------------------------------------------------------
+     Every surface and the accent live here so a theme is a token swap and
+     nothing else. All themes are dark: the interface leans on white-alpha
+     utilities (text-white/55 and friends) throughout, so a light theme would
+     need those rewritten first and is deliberately out of scope.
+     Accents are checked against their own surface, not a generic background. */
+  --c-page: #090b0f;        /* page ground */
+  --c-chrome: #0d1015;      /* header, footer, mobile nav */
+  --c-header: rgb(13 16 21 / 95%);
+  --c-surface: #101319;     /* panels and cards */
+  --c-surface-2: #151a22;   /* raised: bracket cards, tooltips */
+  --c-accent: #ee3240;      /* 4.57:1 on --c-surface; the brand red at #ed2b3a
+                               measured 4.43:1, just under the small-text floor */
+  /* Text set on an accent fill. White on the lighter accents measured 1.5-2.1:1,
+     so those themes ink it instead; on the red, white (4.07:1) is kept as the
+     brand pairing and only ever carries semibold labels. */
+  --c-on-accent: #ffffff;
+  --c-band: #282c20;        /* full-bleed season band */
+  --c-hero: #0b0d11;
+  --c-hero-a: #15181e;
+  --c-hero-b: #0b0e12;
 
   --background: oklch(0.13 0.01 260);
   --foreground: oklch(0.97 0.005 260);
@@ -166,6 +193,55 @@ h1, h2, h3 { overflow-wrap: anywhere; }
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+
+/* Selectable themes. Applied as data-theme on <html>; the picker persists the
+   choice and static-site/index.html restores it before first paint. */
+[data-theme='ember'] {
+  --c-page: #0d0b09;
+  --c-chrome: #12100d;
+  --c-header: rgb(18 16 13 / 95%);
+  --c-surface: #17130f;
+  --c-surface-2: #1e1914;
+  --c-accent: #f5a524;      /* 9.05:1 on surface */
+  --c-on-accent: #0b0d10;   /* 9.53:1 on the accent */
+  --c-band: #2c2416;
+  --c-hero: #100d0a;
+  --c-hero-a: #1c1712;
+  --c-hero-b: #0f0c09;
+}
+
+[data-theme='abyss'] {
+  --c-page: #070a12;
+  --c-chrome: #0a0f1a;
+  --c-header: rgb(10 15 26 / 95%);
+  --c-surface: #0e1420;
+  --c-surface-2: #141c2c;
+  --c-accent: #38bdf8;      /* 8.60:1 on surface */
+  --c-on-accent: #0b0d10;   /* 9.08:1 on the accent */
+  --c-band: #16283a;
+  --c-hero: #080d17;
+  --c-hero-a: #121b2b;
+  --c-hero-b: #080c14;
+}
+
+[data-theme='moss'] {
+  --c-page: #0a0c09;
+  --c-chrome: #0e110c;
+  --c-header: rgb(14 17 12 / 95%);
+  --c-surface: #121711;
+  --c-surface-2: #1a2018;
+  --c-accent: #a3e635;      /* 12.04:1 on surface */
+  --c-on-accent: #0b0d10;   /* 12.90:1 on the accent */
+  --c-band: #232d1c;
+  --c-hero: #0b0e0a;
+  --c-hero-a: #161c13;
+  --c-hero-b: #0a0d09;
+}
+
+/* Keep the shadcn background token on the palette, so overscroll bounce and
+   any uncovered area match the active theme rather than a neutral near-black. */
+html.dark { --background: var(--c-page); }
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -221,16 +297,15 @@ h1, h2, h3 { overflow-wrap: anywhere; }
   /* Team profile is treated as a feature spread: the rest of the site is the
      ruled almanac, this one page gets the masthead-scale lockup. Weight, not
      colour, splits the identifier: light digits, heavy letter suffix. */
+  /* The number is drawn, not set: SignedNumber renders one path per pen stroke
+     and traces them in order. Height rather than font-size drives the scale. */
   .team-lockup {
-    font-family: var(--font-claude-sans);
-    font-size: clamp(3.25rem, 13vw, 9rem);
-    line-height: 0.86;
-    letter-spacing: -0.045em;
-    text-transform: uppercase;
+    display: block;
+    height: clamp(5rem, 16vw, 11rem);
+    color: #fff;
   }
 
-  .team-lockup-digits { font-weight: 300; }
-  .team-lockup-suffix { font-weight: 800; color: #ed2b3a; }
+  .team-lockup svg { height: 100%; width: auto; max-width: 100%; }
 
   .team-figure {
     font-family: var(--font-claude-mono);
@@ -261,6 +336,38 @@ h1, h2, h3 { overflow-wrap: anywhere; }
 
   @media (prefers-reduced-motion: no-preference) {
     .rise, .team-band .band-item { opacity: 0; }
+
+    /* The team number is signed on. A left-to-right clip reveal reads as a pen
+       stroke across a handwriting face - far more convincing here than an SVG
+       stroke-dash trace, which draws every glyph outline at once and needs real
+       path data the team numbers do not have.
+       The inset keeps slack on three sides so descenders and the tail of the
+       suffix are never clipped mid-animation. */
+    @keyframes sign-on {
+      from { clip-path: inset(-12% 100% -30% -4%); }
+      to   { clip-path: inset(-12% -8% -30% -4%); }
+    }
+
+    .team-lockup { opacity: 0; }
+
+    .team-lockup {
+      animation: rise 620ms cubic-bezier(0.22, 0.61, 0.36, 1) both,
+                 sign-on 1150ms cubic-bezier(0.62, 0.04, 0.29, 1) both;
+      /* The stroke starts just after the element has faded in, so the hand
+         appears to arrive and then write. */
+      animation-delay: calc(var(--i, 0) * 110ms), calc(var(--i, 0) * 110ms + 150ms);
+    }
+
+    /* Hold the whole band, not just its contents. The band is ~745px tall, so
+       its top edge sits on screen long before it is scrolled to - and painting
+       the olive slab and heading while the figures inside were still at
+       opacity 0 made it read as an empty block appearing out of nowhere. Now
+       nothing paints until it reveals as a unit. */
+    .team-band:not(.is-visible) { opacity: 0; }
+
+    .team-band.is-visible {
+      animation: rise 520ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    }
 
     .rise {
       animation: rise 620ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
@@ -309,6 +416,92 @@ h1, h2, h3 { overflow-wrap: anywhere; }
     }
   }
 
+  /* Scrolling ------------------------------------------------------------ */
+
+  /* The reduced-motion block above already forces scroll-behavior back to auto,
+     so this is safe to set unconditionally. */
+  html { scroll-behavior: smooth; }
+
+  /* The header is sticky, so anything scrolled to must clear it rather than
+     hide underneath. */
+  :where(h1, h2, h3, section, article, [id]) { scroll-margin-top: 6rem; }
+
+  /* Inner panes (attending teams, event history) previously chained their
+     scroll to the page: reaching the bottom of the list yanked the whole page
+     down. Contain it, and keep momentum inside the pane. */
+  :where(.overflow-auto, .overflow-y-auto) {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Reading position, driven by the scroll timeline rather than a listener. */
+  .scroll-progress {
+    position: absolute;
+    inset: auto 0 -1px 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--c-accent), color-mix(in srgb, var(--c-accent) 55%, #ffd7c9));
+    transform: scaleX(0);
+    transform-origin: 0 50%;
+    pointer-events: none;
+  }
+
+  @supports (animation-timeline: scroll()) {
+    @media (prefers-reduced-motion: no-preference) {
+      @keyframes scroll-progress { to { transform: scaleX(1); } }
+      .scroll-progress {
+        animation: scroll-progress linear both;
+        animation-timeline: scroll(root block);
+      }
+    }
+  }
+
+  /* Pointer interaction --------------------------------------------------- */
+
+  /* Hover affordances only where there is a real pointer: on touch these
+     otherwise stick after a tap. */
+  @media (hover: hover) and (pointer: fine) {
+    .float-card {
+      position: relative;
+      transition: transform 220ms cubic-bezier(0.22, 0.61, 0.36, 1),
+                  border-color 220ms ease,
+                  box-shadow 220ms ease;
+    }
+
+    .float-card::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity 220ms ease;
+      pointer-events: none;
+      /* --mx/--my are written by one delegated, rAF-throttled pointermove
+         handler; they fall back to the centre before the first move. */
+      background: radial-gradient(
+        16rem circle at var(--mx, 50%) var(--my, 50%),
+        rgb(255 255 255 / 7%),
+        transparent 60%
+      );
+    }
+
+    .float-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px -18px rgb(0 0 0 / 80%);
+    }
+
+    .float-card:hover::after { opacity: 1; }
+
+    /* Keyboard users get the same emphasis, minus the cursor-tracked glow. */
+    .float-card:focus-visible { transform: translateY(-2px); }
+  }
+
+  /* Touch gets no hover, so a card would otherwise give no sign a tap landed
+     until the next view painted. A slight press, released quickly. */
+  @media (hover: none) {
+    .float-card { transition: transform 160ms cubic-bezier(0.22, 0.61, 0.36, 1); }
+    .float-card:active { transform: scale(0.985); transition-duration: 60ms; }
+  }
+
   /* Ranking figures must not reflow column to column as values change. */
   table, [class*="tabular"], td, th {
     font-variant-numeric: tabular-nums;
@@ -335,6 +528,25 @@ h1, h2, h3 { overflow-wrap: anywhere; }
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* iOS Safari zooms the page into any field set below 16px the moment it is
+   focused, and does not zoom back out. Unlayered, so it outranks the text-sm
+   and text-xs utilities on phones only. */
+@media (max-width: 639px) {
+  input, select, textarea { font-size: 16px; }
+}
+
+/* A tap on a button flashed a grey slab the shape of its box, which looked like
+   a rendering fault on the borderless controls. A dim on press replaces it, so
+   every tap still answers within a frame; cards press in instead (above). */
+button, a, [role="link"] { -webkit-tap-highlight-color: transparent; }
+/* In the base layer so any transition or opacity utility on a control wins. */
+@layer base {
+  @media (hover: none) {
+    :where(button, a, [role="link"]):not(.float-card) { transition: opacity 160ms ease; }
+    :where(button, a, [role="link"]):not(.float-card):active { opacity: 0.6; transition-duration: 40ms; }
   }
 }
 
@@ -476,3 +688,83 @@ h1, h2, h3 { overflow-wrap: anywhere; }
   width: 16rem;
   transform: translateY(-50%);
 }
+
+/* Strength hexagon grows out from its centre on first paint. The global
+   reduced-motion rule above removes the transition, leaving the final shape. */
+.strength-shape { transition: transform .9s cubic-bezier(.2, .8, .2, 1); }
+
+/* Paka, the pixel cat (components/paka). Square corners and a stepped shadow
+   keep the boxes in the sprite's pixel style; colours follow the theme. */
+.paka-box {
+  padding: 10px 12px;
+  background: var(--c-surface-2);
+  border: 2px solid rgba(255, 255, 255, .16);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, .45);
+  image-rendering: pixelated;
+}
+/* A native <dialog> brings its own centring and colours; Paka's sits above the cat. */
+.paka-panel { inset: auto; margin: 0; color: inherit; }
+.paka-panel-above { bottom: 100%; margin-bottom: 8px; }
+.paka-panel-below { top: 100%; margin-top: 8px; }
+.paka-panel-left { left: 0; }
+.paka-panel-right { right: 0; }
+.paka-mood { display: block; width: 100%; height: 6px; appearance: none; border: 0; border-radius: 999px; overflow: hidden; background: rgba(255, 255, 255, .1); }
+.paka-mood::-webkit-progress-bar { background: rgba(255, 255, 255, .1); }
+.paka-mood::-webkit-progress-value { background: var(--c-accent); }
+.paka-mood::-moz-progress-bar { background: var(--c-accent); }
+.paka-chip {
+  border: 1px solid rgba(255, 255, 255, .16);
+  background: rgba(255, 255, 255, .04);
+  padding: 3px 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, .8);
+  text-align: left;
+}
+.paka-chip:hover, .paka-chip:focus-visible { border-color: var(--c-accent); color: #fff; outline: none; }
+.paka-cat { transition: transform 120ms steps(2); }
+/* The outline is near-black, like the page; a faint halo keeps the cat's edge. */
+.paka-cat svg, .paka-box svg { filter: drop-shadow(0 0 1px rgba(255, 255, 255, .45)); }
+.paka-cat:hover:not(.paka-walk):not(.paka-dragging) { translate: 0 -2px; }
+.paka-walk svg { animation: paka-bob 320ms steps(2) infinite; }
+.paka-cat { cursor: grab; touch-action: none; }
+.paka-dragging { cursor: grabbing; }
+.paka-hop svg { animation: paka-hop 450ms steps(4); }
+.paka-purr svg { animation: paka-purr 110ms steps(2) infinite; }
+.paka-held svg { transform: translateY(-8px); }
+.paka-drop svg { animation: paka-drop 320ms steps(3); }
+/* The Ask button is quiet until the reader is near Paka. */
+.paka-ask { opacity: .45; transition: opacity 150ms; background: var(--c-surface-2); border: 2px solid rgba(255, 255, 255, .16); box-shadow: 2px 2px 0 rgba(0, 0, 0, .45); }
+.paka:hover .paka-ask, .paka-ask:focus-visible, .paka-ask-open { opacity: 1; }
+.paka-ask-open { border-color: var(--c-accent); }
+/* Click tricks (components/paka, pickTrick). steps() keeps them pixel-jerky. */
+.paka-spin svg { animation: paka-spin 640ms steps(1); }
+.paka-roll svg { animation: paka-roll 760ms steps(8); transform-origin: 50% 70%; }
+.paka-stretch svg { animation: paka-stretch 1000ms steps(3); transform-origin: 50% 100%; }
+.paka-sneeze svg { animation: paka-sneeze 520ms steps(4); transform-origin: 50% 100%; }
+.paka-chase svg { animation: paka-spin 320ms steps(1) infinite; }
+.paka-chirp {
+  translate: -50% 0;
+  padding: 1px 6px;
+  background: var(--c-surface-2);
+  border: 2px solid rgba(255, 255, 255, .16);
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, .45);
+  font: 700 11px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #fff;
+  animation: paka-chirp 1.1s steps(4) forwards;
+}
+@keyframes paka-spin { 25% { transform: scaleX(-1); } 50% { transform: scaleX(1); } 75% { transform: scaleX(-1); } }
+@keyframes paka-roll { to { transform: rotate(360deg); } }
+@keyframes paka-stretch { 30%, 70% { transform: scale(1.18, .78); } }
+@keyframes paka-sneeze { 30% { transform: scale(1.06, .9); } 45% { transform: translate(2px, -7px); } 70% { transform: translate(0, -2px); } }
+@keyframes paka-chirp { 0% { opacity: 0; transform: translateY(4px); } 20%, 80% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-6px); } }
+@keyframes paka-hop { 40% { transform: translateY(-10px); } 70% { transform: translateY(-4px); } }
+@keyframes paka-purr { 50% { transform: translateX(1px); } }
+@keyframes paka-drop { 0% { transform: translateY(-8px); } 60% { transform: translateY(1px); } }
+.paka-asleep svg { animation: paka-breathe 2.4s steps(2) infinite; }
+.paka-heart { animation: paka-heart 1.2s steps(6) forwards; }
+.paka-z { animation: paka-z 2.4s steps(4) infinite; }
+@keyframes paka-bob { 50% { transform: translateY(-3px); } }
+@keyframes paka-breathe { 50% { transform: translateY(1px); } }
+@keyframes paka-heart { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, -36px); } }
+@keyframes paka-z { 0% { opacity: 0; transform: translateY(4px); } 50% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px); } }

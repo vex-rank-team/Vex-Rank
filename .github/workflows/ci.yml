@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: website/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: website
+
+      # Catches unparseable source before anything else. A merge with conflict
+      # markers still in it reached a branch in this repo; this step fails on
+      # that in seconds.
+      - name: Build
+        run: pnpm exec vite build --config vite.pages.config.ts
+        working-directory: website
+
+      - name: Tests
+        run: node --test tests/*.test.mjs
+        working-directory: website
+
+      # Advisory until the remaining react-compiler and exhaustive-deps debt is
+      # paid down. Flip continue-on-error off to make it a gate.
+      - name: Lint
+        run: pnpm lint
+        working-directory: website
+        continue-on-error: true

@@ -1,0 +1,200 @@
+{
+ "team": {
+  "id": 186306,
+  "number": "86995D",
+  "name": "86995D",
+  "organization": "北京乐高创美教育科技有限公司",
+  "robot": "86995D",
+  "grade": "Middle School",
+  "region": "北京, Beijing, China",
+  "country": "China",
+  "registered": true,
+  "active": false,
+  "currentSeasonEvents": 0,
+  "seasons": 2
+ },
+ "events": [
+  {
+   "id": 65767,
+   "sku": "VE-IQ-26-65767",
+   "name": "爱因斯坦联盟2026-2027VEX机器人华北大区赛: VEX IQ Robotics Competitionᵀᴹ Middle School",
+   "start": "2026-10-04T00:00:00-04:00",
+   "end": "2026-10-07T00:00:00-04:00",
+   "season": "VEX IQ Robotics Competition 2026-2027: Level Up",
+   "seasonId": 203,
+   "level": "Other",
+   "location": "Beijing, Beijing, China",
+   "elimination": "No elimination result"
+  },
+  {
+   "id": 65225,
+   "sku": "RE-VIQRC-26-5225",
+   "name": "iSTEMn VEX IQ Robotics Competition Middle School - Beijing(2): 爱因斯坦联盟2026-2027 VEX机器人北京城市赛（二）",
+   "start": "2026-08-13T00:00:00-04:00",
+   "end": "2026-08-14T00:00:00-04:00",
+   "season": "VEX IQ Robotics Competition 2026-2027: Level Up",
+   "seasonId": 203,
+   "level": "Other",
+   "location": "Beijing, Beijing, China",
+   "elimination": "No elimination result"
+  },
+  {
+   "id": 61958,
+   "sku": "RE-VIQRC-25-1958",
+   "name": "2025-2026赛季VEX机器人亚洲公开赛华北大区赛（一）VIQRC_ES: Elementary School",
+   "start": "2025-10-04T00:00:00-04:00",
+   "end": "2025-10-07T00:00:00-04:00",
+   "season": "VEX IQ Robotics Competition 2025-2026: Mix & Match",
+   "seasonId": 196,
+   "level": "Other",
+   "location": "石家庄, Hebei, China",
+   "elimination": "No elimination result"
+  },
+  {
+   "id": 61171,
+   "sku": "RE-VIQRC-25-1171",
+   "name": "2025-2026VEX机器人亚洲公开赛北京城市赛(第三场)VIQRC_ES: Elementary School",
+   "start": "2025-09-13T00:00:00-04:00",
+   "end": "2025-09-14T00:00:00-04:00",
+   "season": "VEX IQ Robotics Competition 2025-2026: Mix & Match",
+   "seasonId": 196,
+   "level": "Other",
+   "location": "北京, Beijing, China",
+   "elimination": "No elimination result"
+  },
+  {
+   "id": 61168,
+   "sku": "RE-VIQRC-25-1168",
+   "name": "2025-2026VEX机器人亚洲公开赛北京城市赛(第二场)VIQRC_ES: Elementary School",
+   "start": "2025-08-16T00:00:00-04:00",
+   "end": "2025-08-17T00:00:00-04:00",
+   "season": "VEX IQ Robotics Competition 2025-2026: Mix & Match",
+   "seasonId": 196,
+   "level": "Other",
+   "location": "北京, Beijing, China",
+   "elimination": "No elimination result"
+  }
+ ],
+ "rankings": [
+  {
+   "event": "爱因斯坦联盟2026-2027VEX机器人华北大区赛: VEX IQ Robotics Competitionᵀᴹ Middle School",
+   "eventId": 65767,
+   "season": "VEX IQ Robotics Competition 2026-2027: Level Up",
+   "seasonId": 203,
+   "division": "Division 1",
+   "rank": 4,
+   "wins": 0,
+   "losses": 0,
+   "ties": 0,
+   "wp": 0,
+   "ap": 0,
+   "sp": 0,
+   "highScore": 330
+  },
+  {
+   "event": "iSTEMn VEX IQ Robotics Competition Middle School - Beijing(2): 爱因斯坦联盟2026-2027 VEX机器人北京城市赛（二）",
+   "eventId": 65225,
+   "season": "VEX IQ Robotics Competition 2026-2027: Level Up",
+   "seasonId": 203,
+   "division": "Division 1",
+   "rank": 14,
+   "wins": 0,
+   "losses": 0,
+   "ties": 0,
+   "wp": 0,
+   "ap": 0,
+   "sp": 0,
+   "highScore": 288
+  }
+ ],
+ "awards": [
+  {
+   "title": "Teamwork Champion Award (IQ)",
+   "event": "爱因斯坦联盟2026-2027VEX机器人华北大区赛: VEX IQ Robotics Competitionᵀᴹ Middle School",
+   "eventId": 65767,
+   "season": "VEX IQ Robotics Competition 2026-2027: Level Up",
+   "seasonId": 203
+  },
+  {
+   "title": "Robot Skills Champion (IQ)",
+   "event": "爱因斯坦联盟2026-2027VEX机器人华北大区赛: VEX IQ Robotics Competitionᵀᴹ Middle School",
+   "eventId": 65767,
+   "season": "VEX IQ Robotics Competition 2026-2027: Level Up",
+   "seasonId": 203
+  }
+ ],
+ "skills": [
+  {
+   "event": "爱因斯坦联盟2026-2027VEX机器人华北大区赛: VEX IQ Robotics Competitionᵀᴹ Middle School",
+   "eventId": 65767,
+   "type": "driver",
+   "score": 176,
+   "attempts": 3,
+   "rank": 1,
+   "season": "VEX IQ Robotics Competition 2026-2027: Level Up",
+   "seasonId": 203
+  },
+  {
+   "event": "爱因斯坦联盟2026-2027VEX机器人华北大区赛: VEX IQ Robotics Competitionᵀᴹ Middle School",
+   "eventId": 65767,
+   "type": "programming",
+   "score": 174,
+   "attempts": 3,
+   "rank": 1,
+   "season": "VEX IQ Robotics Competition 2026-2027: Level Up",
+   "seasonId": 203
+  }
+ ],
+ "seasonGrades": {
+  "196": "Middle School",
+  "203": "Middle School"
+ },
+ "ratingHistory": [
+  {
+   "seasonId": 203,
+   "eventId": 65225,
+   "event": "iSTEMn VEX IQ Robotics Competition Middle School - Beijing(2): 爱因斯坦联盟2026-2027 VEX机器人北京城市赛（二）",
+   "eventDate": "2026-08-13T00:00:00-04:00",
+   "change": -18,
+   "rawChange": -17.835365853658537,
+   "rating": 1492,
+   "matches": 7,
+   "version": "VCR-3.0-candidate.2",
+   "tier": "B",
+   "champion": false,
+   "components": {
+    "match": 0,
+    "qualification": 0,
+    "elimination": -14.625,
+    "contribution": 0,
+    "auto": 0
+   },
+   "achievementCorrection": 0
+  },
+  {
+   "seasonId": 203,
+   "eventId": 65767,
+   "event": "爱因斯坦联盟2026-2027VEX机器人华北大区赛: VEX IQ Robotics Competitionᵀᴹ Middle School",
+   "eventDate": "2026-10-04T00:00:00-04:00",
+   "change": -4,
+   "rawChange": -4.167081342758536,
+   "rating": 1488,
+   "matches": 9,
+   "version": "VCR-3.0-candidate.2",
+   "tier": "B",
+   "champion": false,
+   "components": {
+    "match": 1.8236182989380012,
+    "qualification": 0,
+    "elimination": -5.2406250000000005,
+    "contribution": 0,
+    "auto": 0
+   },
+   "achievementCorrection": 0
+  }
+ ],
+ "modelVersion": "VCR-3.0-candidate.2",
+ "loadedSeasonIds": [
+  203
+ ]
+}

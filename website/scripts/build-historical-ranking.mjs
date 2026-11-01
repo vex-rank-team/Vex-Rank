@@ -3,6 +3,7 @@
 // full coverage metadata. Use rebuild-season-archives.mjs for publishable VCR 3
 // archives; changing the filename alone does not make this output complete.
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { recencyWeight as sharedRecencyWeight, confidenceFor } from '../lib/vcr-scoring.mjs';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
 import { processCompletedEvent, VCR_VERSION } from '../lib/vcr3.mjs';
@@ -19,7 +20,9 @@ const seasons={
 };
 const seasonId=Number(process.argv[2]??197);const config=seasons[seasonId];if(!config)throw new Error('Unsupported season id');
 const seasonEnd=new Date(config.end);
-const recencyWeight=date=>2**(-Math.max(0,(seasonEnd.getTime()-new Date(date).getTime())/86400000)/75);
+// Decay is measured from the season's end, not today: an archive must not
+// change every time it is regenerated.
+const recencyWeight=date=>sharedRecencyWeight(date,seasonEnd);
 const gradeFromContext=value=>{const text=String(value??'').toLowerCase().replace(/[_/-]+/g,' ');const middle=/\bmiddle school\b|\bjunior high\b|\bjr\.? high\b|\bms\b/.test(text);const high=/\bhigh school\b|\bsenior high\b|\bhs\b/.test(text);return middle&&!high?'Middle School':high&&!middle?'High School':null};
 const gradeFromOrganization=value=>/\bmiddle school\b|\bjunior high\b|\bjr\.? high\b|\bintermediate school\b|\belementary school\b/i.test(String(value??''))?'Middle School':/\bhigh school\b|\bsenior high\b|\bsecondary school\b/i.test(String(value??''))?'High School':null;
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -54,7 +57,7 @@ const matches=matchGroups.flat().filter(match=>match.alliances?.length===2&&matc
 matches.sort((a,b)=>String(a.scheduled??a.updated_at??a.eventDate).localeCompare(String(b.scheduled??b.updated_at??b.eventDate)));
 const states=new Map(),historyByTeam=new Map(),matchesByEvent=new Map();for(const match of matches){if(!matchesByEvent.has(match.eventId))matchesByEvent.set(match.eventId,[]);matchesByEvent.get(match.eventId).push(match)}
 for(const event of events.sort((a,b)=>String(a.end).localeCompare(String(b.end)))){const eventMatches=matchesByEvent.get(event.id)??[];processCompletedEvent({event,matches:eventMatches,states,historyByTeam});for(const match of eventMatches)for(const alliance of match.alliances??[])for(const entry of alliance.teams??[]){const team=states.get(entry.team?.id);if(!team)continue;if(match.gradeHint==='Middle School')team.middleGradeEvents.add(event.id);if(match.gradeHint==='High School')team.highGradeEvents.add(event.id)}}
-const rated=[...states.values()].filter(team=>team.matches>=4).map(team=>{const confidence=Math.max(25,Math.round(120/Math.sqrt(Math.max(1,team.matches/4))));const history=historyByTeam.get(team.id)??[];const rating=1500+history.reduce((sum,row)=>sum+Number(row.rawChange??row.change)*recencyWeight(row.eventDate),0);return{...team,rating,events:team.events.size,confidence,displayedStrength:rating-confidence,form:history.slice(-5)}}).sort((a,b)=>b.displayedStrength-a.displayedStrength);
+const rated=[...states.values()].filter(team=>team.matches>=4).map(team=>{const confidence=confidenceFor(team.matches);const history=historyByTeam.get(team.id)??[];const rating=1500+history.reduce((sum,row)=>sum+Number(row.rawChange??row.change)*recencyWeight(row.eventDate),0);return{...team,rating,events:team.events.size,confidence,displayedStrength:rating-confidence,form:history.slice(-5)}}).sort((a,b)=>b.displayedStrength-a.displayedStrength);
 const detailGroups=[];for(let i=0;i<rated.length;i+=100)detailGroups.push(rated.slice(i,i+100));
 const detailPayloads=await mapLimit(detailGroups,1,group=>get(`${root}/teams?${group.map(team=>`id%5B%5D=${team.id}`).join('&')}&per_page=100`).then(payload=>payload.data));
 const official=new Map(detailPayloads.flat().map(team=>[team.id,team]));

@@ -6,7 +6,7 @@ export function classifyEvent(name:string, level:string | null) {
   const officialLevel = String(level ?? '').trim().toLowerCase();
   const normalizedName = value.replace(/[™®]/g,'').replace(/\s+/g,' ').trim();
   const eventType = value.includes('league') ? 'League' : value.includes('invitational') ? 'Invitational Tournament' : /school[- ]based/.test(value) ? 'School-Based Tournament' : value.includes('remote skills') ? 'Live Remote Skills' : 'Open Tournament';
-  const isWorldChampionship = /\bvex(?: v5)? robotics world championship\b/.test(normalizedName)
+  const isWorldChampionship = /\bvex(?: v5| iq)? robotics world championship\b/.test(normalizedName)
     && !/\b(scrimmage|checkup|practice)\b/.test(normalizedName)
     && !/\bjrotc\b/.test(normalizedName);
   const levelClass = /\bjrotc\b.*\bbrigade championship\b|\bbrigade championship\b.*\bjrotc\b/.test(normalizedName) ? 'JROTC Brigade Championship'
@@ -20,6 +20,12 @@ export function classifyEvent(name:string, level:string | null) {
     : /\b(?:state|provincial|event region|regional) championship\b/.test(normalizedName) ? 'Event Region Championship'
     : 'None';
   const format = value.includes('remote') || value.includes('virtual') ? 'Remote' : 'In-Person';
-  const grade = value.includes('middle school') || value.includes(' ms ') ? 'Middle School' : value.includes('high school') || value.includes(' hs ') ? 'High School' : 'Mixed';
+  // Elementary is VEX IQ's younger grade. V5 events never name it, so they
+  // classify exactly as before; an IQ event open to both grades is Mixed.
+  const elementary = /\belementary\b/.test(value) || value.includes('viqrc_es');
+  const grade = elementary && value.includes('middle school') ? 'Mixed'
+    : value.includes('middle school') || value.includes(' ms ') ? 'Middle School'
+    : value.includes('high school') || value.includes(' hs ') ? 'High School'
+    : elementary ? 'Elementary School' : 'Mixed';
   return { eventType, levelClass, format, grade, worldQualifier: officialLevel === 'world' };
 }

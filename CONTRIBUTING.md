@@ -29,7 +29,7 @@ Paths below are relative to `website/`.
 | Area | Start here | Responsibility |
 | --- | --- | --- |
 | Website views and navigation | `app/page.tsx`, `app/globals.css` | Main React UI, selected seasons, loading states and rendering |
-| Pages entry point | `pages/main.tsx`, `vite.pages.config.ts` | Static frontend using the shared main UI and separate API origin |
+| Pages entry point | `static-site/main.tsx`, `vite.pages.config.ts` | Static frontend using the shared main UI and separate API origin |
 | API routes | `app/api/` | Events, event details, team profiles, skills and sampled rankings |
 | Upstream requests | `lib/vex-api.ts` | Bounded concurrency, pagination, retries and successful-page cache |
 | Rating calculations | `lib/vcr3.mjs` | Shared event evidence, settlement and audit history |
@@ -91,3 +91,9 @@ Supported historical season IDs are 197, 190, 181 and 173. The command calls the
 ## GitHub and deployment
 
 Create a focused branch and pull request with the problem, change and checks performed. Avoid committing dependencies, local caches, credentials or unrelated generated data. Deployment instructions live in [website/cloudflare/DEPLOYMENT.md](website/cloudflare/DEPLOYMENT.md); their status notes describe a previous deployment and should be checked before operational use. The root `.github/workflows/github-pages-test.yml` workflow publishes the frontend when manually dispatched. A source-code update alone does not deploy the API or rebuild historical archives.
+
+## Access and review roles
+
+The three project maintainers are `easonli29`, `fredyang88`, and `StevenQQian`. They have repository Admin access and are listed in `.github/CODEOWNERS` for every path. The `main` branch requires a pull request, one approval, Code Owner review, and resolved conversations for ordinary contributors; administrators can bypass those review requirements when necessary. Force pushes and branch deletion remain disabled for everyone.
+
+Other contributors should fork this public repository and open a pull request; they do not need repository access to propose changes. If direct access is needed, grant only the minimum role required, such as Read or Triage, rather than Admin or Write. Repository Admin is not the same as organization Owner: the latter also controls organization-wide membership and settings.

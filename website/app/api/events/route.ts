@@ -1,4 +1,5 @@
 import { classifyEvent } from '@/lib/event-classification';
+import { PROGRAMS, programCode } from '@/lib/programs.mjs';
 import { vexCollection } from '@/lib/vex-api';
 import { env } from 'cloudflare:workers';
 import { eventRankLocksSchema } from '@/db/schema';
@@ -26,14 +27,17 @@ export async function GET(request:Request) {
   if (!token) return Response.json({ error: 'RobotEvents API is not configured.' }, { status: 503 });
   const cached=await readCache(request);if(cached)return cached;
 
-  const requestedSeason=new URL(request.url).searchParams.get('season') ?? '204';
-  const seasonId=/^\d+$/.test(requestedSeason)?requestedSeason:'204';
+  const params=new URL(request.url).searchParams;
+  const program=PROGRAMS[programCode(params.get('program'))];
+  const fallbackSeason=String(program.currentSeason);
+  const requestedSeason=params.get('season') ?? fallbackSeason;
+  const seasonId=/^\d+$/.test(requestedSeason)?requestedSeason:fallbackSeason;
   const url = `${API_ROOT}/events?season%5B%5D=${seasonId}&per_page=250`;
   const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' };
   let allEvents:VexEvent[];
   try { allEvents = await vexCollection(url,headers); }
   catch { return Response.json({error:'The event calendar could not be fully loaded. Please retry.'},{status:502,headers:{'Cache-Control':'no-store'}}); }
-  const currentEvents=allEvents.filter(event=>event.program?.id===1&&String(event.season?.id)===seasonId);
+  const currentEvents=allEvents.filter(event=>event.program?.id===program.id&&String(event.season?.id)===seasonId);
   const signatures=currentEvents.filter(event=>classifyEvent(event.name,event.level).levelClass==='Signature Event');
   const teamCounts=new Map<number,number>();let cursor=0;
   await Promise.all(Array.from({length:Math.min(6,signatures.length)},async()=>{while(cursor<signatures.length){const event=signatures[cursor++];const countResponse=await fetch(`${API_ROOT}/events/${event.id}/teams?per_page=1`,{headers});if(countResponse.ok){const payload=await countResponse.json() as {meta?:{total?:number}};teamCounts.set(event.id,Number(payload.meta?.total??0))}}}));

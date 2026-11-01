@@ -44,3 +44,9 @@ next-env.d.ts
 /firebase/functions/lib/
 **/node_modules/
 firebase-debug.log*
+
+# Built and downloaded deploy assets (team directories, archives); never committed.
+/archive-assets/
+
+# local Wrangler state and build output
+.wrangler/

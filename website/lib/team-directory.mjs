@@ -21,3 +21,16 @@ export function searchDirectory(teams,query,filters={}){
   });
 }
 
+
+/** What a reader sees when VEX IQ was asked for and the IQ list is not there. */
+export const IQ_DIRECTORY_UNAVAILABLE="The VEX IQ team directory isn't available yet.";
+
+/**
+ * Whether a directory file is the one asked for. Files built before VEX IQ
+ * carry no `program` and are V5's. A server that predates IQ support answers
+ * the IQ request with that V5 file, so an IQ request is satisfied only by a
+ * file that says VIQRC.
+ */
+export function directoryMatchesProgram(directory,program='V5RC'){
+  return (directory?.program??'V5RC')===program;
+}

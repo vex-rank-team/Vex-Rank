@@ -62,6 +62,9 @@ The published constants are launch defaults. They should be evaluated through ch
 
 ## Documentation
 
+- [Engineering notebook (PDF)](output/pdf/VEX_Rank_Engineering_Notebook_2026-09-23.pdf) — 326-page dated design, implementation, testing, and release history through September 23, 2026.
+- [Engineering notebook (editable Word document)](output/document/VEX_Rank_Engineering_Notebook_2026-09-23.docx)
+
 - [VCR 3.0 candidate: corrected event settlement](docs/VCR-3.0-revision.md) — implemented in the live ranking API, team history, and historical builder with winner safeguards, an auditable event ledger, exact formulas, and scenario tests. It remains a candidate until historical calibration and deployment.
 
 - [Full VCR 2.0 algorithm documentation](output/pdf/vex_competitive_rating_full_algorithm.pdf)
