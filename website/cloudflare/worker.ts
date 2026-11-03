@@ -7,12 +7,13 @@ import { VCR_VERSION } from '../lib/vcr3.mjs';
 import { archiveSource } from './archive-source';
 import { cacheDecision, FRESH_FOR, STALE_FOR, FRESH_FOR_HEADER } from './cache-policy';
 import { canonicalUrl } from './canonical-url';
+import { streamsRoute } from './streams';
 import { PROGRAMS } from '../lib/programs.mjs';
 import { usePageStore, type PageStore } from '../lib/vex-api';
 import { useIqHistorySource, useIqStateSource, useIqLiveHistorySink, iqRankingsPath, iqHistoryPath, iqHistoryShard, iqStatePath } from '../lib/vcr-iq.mjs';
 import { v5CurrentPath, v5StatePath, useV5SnapshotSource } from '../lib/v5-season';
 
-interface Env { DB: D1Database; ROBOT_EVENTS_API_TOKEN: string; ARCHIVES: Fetcher }
+interface Env { DB: D1Database; ROBOT_EVENTS_API_TOKEN: string; ARCHIVES: Fetcher; YOUTUBE_API_KEY?: string }
 
 // Settings the apps read at launch, so that things which change on someone
 // else's schedule - the season id, cache lifetimes, a note to readers - do not
@@ -209,6 +210,13 @@ export default {
 };
 
 async function handle(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    // The jumper's shared streams: the one route that takes writes.
+    if (new URL(request.url).pathname === '/api/streams') {
+      if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': ALLOWED_ORIGINS[0], 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '86400' } });
+      const response = cors(await streamsRoute(request, env));
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      return response;
+    }
     usePageStore(d1PageStore(env.DB));
     useV5SnapshotSource(() => v5StateFile(env));
     useIqStateSource((seasonId: number) => iqStateFile(env, seasonId));

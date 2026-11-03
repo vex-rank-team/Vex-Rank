@@ -5,7 +5,7 @@
  * /Vex-Rank/, which has no SPA fallback, so a cold load of
  * /Vex-Rank/teams/31260X would 404. A hash survives any static host.
  *
- * Routes: #/  #/events  #/events/:id  #/events/:id/teams/:number  #/rankings
+ * Routes: #/  #/events  #/events/:id  #/events/:id/teams/:number  #/events/:id/live  #/rankings
  *         #/stats  #/teams  #/teams/:number
  *
  * VEX IQ uses the same routes under an `iq/` prefix (#/iq/events/65767). V5
@@ -31,6 +31,7 @@ function v5Hash(view, team, event) {
     return `#/events/${encodeURIComponent(String(event.id))}/teams/${encodeURIComponent(team.number)}`;
   }
   if (view === 'event') return event?.id ? `#/events/${encodeURIComponent(String(event.id))}` : '#/events';
+  if (view === 'eventLive') return event?.id ? `#/events/${encodeURIComponent(String(event.id))}/live` : '#/events';
   if (view === 'home') return '#/';
   if (view === 'stats') return '#/rankings'; // Stat leaders is hidden until its data is ready.
   return `#/${view}`;
@@ -61,6 +62,7 @@ function parse(parts) {
     return null; // malformed percent-encoding
   }
   if (head === 'events' && param && sub === 'teams' && subParam) return { view: 'teamEvent', eventId: param, teamNumber: subParam };
+  if (head === 'events' && param && sub === 'live') return { view: 'eventLive', eventId: param };
   if (head === 'events') return param ? { view: 'event', eventId: param } : { view: 'events' };
   if (head === 'teams') return param ? { view: 'team', teamNumber: param } : { view: 'teams' };
   if (head === 'rankings' || head === 'stats') return { view: 'rankings' };

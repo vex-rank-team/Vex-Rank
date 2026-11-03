@@ -4,25 +4,27 @@ import TeamDirectory from '@/components/team-directory';
 import SignedNumber from '@/components/signed-number';
 import LoadMore from '@/components/load-more';
 import StrengthHexagon, { ordinal } from '@/components/strength-hexagon';
-import { teamMatches, teamStanding, recordCheck, momentum as teamMomentum, strengthProfile } from '@/lib/team-event.mjs';
-import { iqTeamMatches, iqStanding, iqDivisionStandings, iqScoreSeries, iqStrengthProfile, teamworkPair } from '@/lib/viqrc.mjs';
+import { teamMatches, teamStanding, recordCheck, momentum as teamMomentum, strengthProfile, allianceSelections, ordinalSeed } from '@/lib/team-event.mjs';
+import { iqTeamMatches, iqStanding, iqDivisionStandings, iqScoreSeries, iqStrengthProfile, teamworkPair, iqFinals } from '@/lib/viqrc.mjs';
+import { officialRulings, rulingFor, RULING_LABELS } from '@/lib/disqualifications.mjs';
 import { PROGRAMS } from '@/lib/programs.mjs';
 import { initialSeason, hasLoadedSeason, mergeProfiles } from '@/lib/team-profile.mjs';
 import { assetUrl, siteFetch } from '@/lib/client-fetch';
 import { bracketRound } from '@/lib/bracket';
 import { routeToHash, hashToRoute } from '@/lib/routes.mjs';
 import PakaLoader from '@/components/paka';
+import { JumperProvider, JumpButton, WatchButton, LivestreamPage } from '@/components/stream-jumper';
 import { version } from '../package.json';
 import { vexCountries, vexEventRegions, eventRegionsForCountry } from '@/lib/event-regions.mjs';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { parseAgenda } from '@/lib/agenda';
 import { ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, CalendarDays, ChevronRight, Filter, Gauge, Globe2, MapPin, Menu, Search, Users, X } from 'lucide-react';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
-type View = 'home' | 'events' | 'event' | 'teamEvent' | 'rankings' | 'stats' | 'teams' | 'team';
+type View = 'home' | 'events' | 'event' | 'teamEvent' | 'eventLive' | 'rankings' | 'stats' | 'teams' | 'team';
 
 const THEMES=[
   {id:'midnight',name:'Midnight',swatch:'#ee3240'},
@@ -192,6 +194,39 @@ async function fetchWithBackoff(url:string,attempts=3){
   throw lastError;
 }
 
+/**
+ * While an event is running and its page is visible, re-read it every 30 s so
+ * standings and match results appear as soon as events.vex has them (directly
+ * when the build has a token, else from the Worker's minute-fresh copy). One
+ * read at a time; the organizer notes already shown are kept.
+ */
+// Organizer notes that missed the first load (lib/direct-profile.ts), merged
+// in when they arrive - the webcast link among them.
+function useOrganizerNotes(id:string|number|undefined,details:any,setDetails:(update:(previous:any)=>any)=>void){
+  const missing=Boolean(details)&&!Object.values(details?.organizer??{}).some(Boolean);
+  useEffect(()=>{
+    if(!missing||id==null)return;
+    let active=true;
+    import('@/lib/direct-profile').then(({organizerNotes})=>organizerNotes(String(id))).then(organizer=>{if(active&&organizer)setDetails((previous:any)=>previous?{...previous,organizer}:previous)}).catch(()=>{});
+    return()=>{active=false};
+  },[id,missing,setDetails]);
+}
+
+function useLiveEvent(id:string|number|undefined,details:any,setDetails:(update:(previous:any)=>any)=>void,cache:Map<string,any>){
+  const running=Boolean(details?.event)&&(()=>{const start=Date.parse(details.event.start??''),end=Date.parse(details.event.end??''),now=Date.now();return Boolean(details.event.ongoing)||(start-now<86400000&&now-end<86400000)})();
+  useEffect(()=>{
+    if(!running||id==null)return;
+    let busy=false,stopped=false;
+    const tick=async()=>{
+      if(busy||document.hidden)return;busy=true;
+      try{const response=await siteFetch(eventDetailUrl(id),{headers:{'x-vexrank-live':'1'}});if(response.ok){const data:any=await response.json();if(stopped)return;cache.set(String(id),data);setDetails((previous:any)=>({...data,organizer:Object.values(data.organizer??{}).some(Boolean)?data.organizer:previous?.organizer}))}}
+      catch{/* the next tick tries again */}finally{busy=false}
+    };
+    const timer=window.setInterval(tick,30000);
+    return()=>{stopped=true;window.clearInterval(timer)};
+  },[id,running,cache,setDetails]);
+}
+
 async function cachedJson(url:string,cache:Map<string,any>,key:string){if(cache.has(key)&&Date.now()-(cacheTimes.get(url)??0)<300000)return cache.get(key);if(requestCache.has(url))return requestCache.get(url);const request=fetchWithBackoff(url).then(async response=>{const data:any=await response.json();if(!response.ok)throw new Error(data.error||'Request failed');cache.set(key,data);cacheTimes.set(url,Date.now());return data}).catch(error=>{if(error?.name==='TimeoutError')throw new Error('Official data took too long to load. Please retry.');throw error}).finally(()=>requestCache.delete(url));requestCache.set(url,request);return request}
 const prefetchEvent=(id:string|number)=>cachedJson(eventDetailUrl(id),eventDetailCache,String(id)).catch(()=>undefined);
 // Team numbers are not guaranteed unique across programs, so the key says which.
@@ -252,6 +287,9 @@ export default function Home() {
   const [selectedTeam, setSelectedTeam] = useState<any>({number:'',name:''});
   const [teamReturnView,setTeamReturnView]=useState<View>('teams');
   const [teamEventReturnView,setTeamEventReturnView]=useState<View>('event');
+  // The livestream page: which match to open at, a team to filter by, and where Back goes.
+  const [liveTarget,setLiveTarget]=useState<{matchId?:number;team?:string}|null>(null);
+  const [liveReturnView,setLiveReturnView]=useState<View>('event');
   const [selectedEvent, setSelectedEvent] = useState<any>({});
   const [navigationRestored,setNavigationRestored]=useState(false);
 
@@ -406,9 +444,10 @@ export default function Home() {
     setTeamSearch(''); setTeamRegion('All'); setTeamDirectoryRegion('All'); setRankingRange('All');
     setRankingViewState(rankingStateFor(next));
     setLiveTeams([]); setRankingsMeta(null); setRankingsError(''); setHomeEvents([]);
-    go(view === 'event' || view === 'teamEvent' ? 'events' : view === 'team' ? (['events','event','teamEvent'].includes(teamReturnView) ? 'events' : teamReturnView) : view);
+    go(view === 'event' || view === 'teamEvent' || view === 'eventLive' ? 'events' : view === 'team' ? (['events','event','teamEvent'].includes(teamReturnView) ? 'events' : teamReturnView) : view);
   };
   const openEvent = (event:any) => { void prefetchEvent(event.id);setSelectedEvent(event); go('event'); };
+  const openLive = (event:any,target?:{matchId?:number;team?:string}) => { setSelectedEvent((current:any)=>String(current?.id)===String(event.id)?current:event);setLiveTarget(target??null);setLiveReturnView(view==='teamEvent'?'teamEvent':'event');go('eventLive');window.scrollTo({top:0,behavior:'instant' as ScrollBehavior}); };
   const openTeamAtEvent = (team:any,event:any) => { void prefetchEvent(event.id);setSelectedTeam(team);setSelectedEvent(event);setTeamEventReturnView(view==='team'?'team':'event');go('teamEvent'); };
 
   const shownEvents = useMemo(() => eventRows.filter((e:any) => {
@@ -446,8 +485,9 @@ export default function Home() {
     <div key={view} className="view-enter">
     {view === 'home' && <HomeView go={go} openTeam={openTeam} openEvent={openEvent} eventRows={homeEvents} teamRows={teamRows} teamsLoading={!rankingsMeta&&!rankingsError} loading={eventsLoading} error={eventsError} retry={()=>setEventsRetry(value=>value+1)} />}
     {view === 'events' && <EventsView loading={eventsLoading} error={eventsError} retry={()=>setEventsRetry(value=>value+1)} results={shownEvents} live={eventsLive} openEvent={openEvent} search={eventSearch} setSearch={setEventSearch} filters={{region,eventClass,format,time,grade}} setters={{setRegion,setEventClass,setFormat,setTime,setGrade}} extras={eventExtras} setExtras={setEventExtras} />}
-    {view === 'event' && <EventInfoView key={selectedEvent.id} event={selectedEvent} goBack={() => go('events')} openTeam={openTeam} openTeamAtEvent={(team:any)=>openTeamAtEvent(team,selectedEvent)} />}
-    {view === 'teamEvent' && <TeamEventView key={`${selectedEvent.id}:${selectedTeam.number}`} event={selectedEvent} team={selectedTeam} backLabel={teamEventReturnView==='team'?String(selectedTeam.number||'team'):'event'} goBack={() => go(teamEventReturnView)} openEvent={openEvent} openTeam={openTeam} />}
+    {view === 'event' && <EventInfoView key={selectedEvent.id} event={selectedEvent} goBack={() => go('events')} openTeam={openTeam} openTeamAtEvent={(team:any)=>openTeamAtEvent(team,selectedEvent)} openLive={(target?:any)=>openLive(selectedEvent,target)} />}
+    {view === 'eventLive' && <LivestreamView key={selectedEvent.id} event={selectedEvent} target={liveTarget} backLabel={liveReturnView==='teamEvent'?String(selectedTeam?.number||'team'):'event'} goBack={() => go(liveReturnView)} />}
+    {view === 'teamEvent' && <TeamEventView key={`${selectedEvent.id}:${selectedTeam.number}`} event={selectedEvent} team={selectedTeam} backLabel={teamEventReturnView==='team'?String(selectedTeam.number||'team'):'event'} goBack={() => go(teamEventReturnView)} openEvent={openEvent} openTeam={openTeam} openLive={(target?:any)=>openLive(selectedEvent,target)} />}
     {!isIQ(program)&&(view==='rankings'||view==='stats'||view==='home')&&rankingsError&&<LoadError message={rankingsError} retry={()=>setRankingsRetry(value=>value+1)} />}
     {view === 'rankings' && isIQ(program) && <IQRankingsView teams={teamRows} meta={rankingsMeta} openTeam={openTeam} savedState={rankingViewState} setSavedState={setRankingViewState} />}
     {view === 'rankings' && !isIQ(program) && <RankingsView teams={teamRows} meta={rankingsMeta} failed={Boolean(rankingsError)} openTeam={openTeam} savedState={rankingViewState} setSavedState={setRankingViewState} />}
@@ -523,7 +563,7 @@ function EventsView({ loading,error,retry,results, live, openEvent, search, setS
   </section>;
 }
 
-function EventInfoView({ event, goBack, openTeam, openTeamAtEvent }: {event:any;goBack:()=>void;openTeam:(team:any)=>void;openTeamAtEvent:(team:any)=>void}) {
+function EventInfoView({ event, goBack, openTeam, openTeamAtEvent, openLive }: {event:any;goBack:()=>void;openTeam:(team:any)=>void;openTeamAtEvent:(team:any)=>void;openLive?:(target?:{matchId?:number;team?:string})=>void}) {
   const [details,setDetails] = useState<any>(()=>eventDetailCache.get(String(event.id))??null);
   const [loading,setLoading] = useState(()=>!eventDetailCache.has(String(event.id)));
   const [tab,setTab] = useState('general');
@@ -541,6 +581,8 @@ function EventInfoView({ event, goBack, openTeam, openTeamAtEvent }: {event:any;
     cachedJson(eventDetailUrl(event.id),eventDetailCache,String(event.id)).then((data:any)=>{if(active)setDetails(data)}).catch(error=>{if(active)setDetailError(error.message)}).finally(()=>{if(active)setLoading(false)});
     return()=>{active=false};
   },[event.id,detailRetry]);
+  useLiveEvent(event.id,details,setDetails,eventDetailCache);
+  useOrganizerNotes(event.id,details,setDetails);
   const info=details?.event;
   const teamsList=details?.teams ?? [];
   const divisions=details?.divisions ?? [];
@@ -557,7 +599,7 @@ function EventInfoView({ event, goBack, openTeam, openTeamAtEvent }: {event:any;
   const eventDays=Array.from({length:Math.min(10,Math.max(1,Math.floor((new Date(dateEnd).getTime()-new Date(dateStart).getTime())/86400000)+1))},(_,index)=>new Date(new Date(dateStart).getTime()+index*86400000));
   const agendaData=parseAgenda(organizer.agenda,eventDays);
   const generalSummary=simplifyGeneralInfo(organizer.general);
-  return <section className="mx-auto max-w-[1440px] px-5 py-10 lg:px-8">
+  return <JumperProvider eventId={event.id} divisions={divisions} webcast={organizer.webcast} info={info} onWatch={openLive&&((match?:any)=>openLive(match?{matchId:Number(match.id)}:undefined))}><section className="mx-auto max-w-[1440px] px-5 py-10 lg:px-8">
     <button onClick={goBack} className="-ml-1 mb-4 flex min-h-11 items-center gap-2 px-1 text-sm font-bold text-white/50 transition-colors hover:text-white"><ArrowLeft className="h-4 w-4" /> Back to events</button>
     <div className="border border-white/10 bg-[var(--c-hero)] p-6 sm:p-8"><div className="flex flex-wrap items-center gap-2"><Tier value={event.tier} /><EventStatus value={/cancell?ed/i.test(info?.name??event.name??'')?'Cancelled':info?.ongoing?'In progress':info?.end?(new Date(info.end)<new Date()?'Completed':'Upcoming'):(event.status??'Upcoming')} /></div><p className="mt-5 text-[11px] italic text-white/45">{event.sku ?? info?.sku ?? 'Official V5RC event'}</p><h1 className="font-display mt-1.5 max-w-4xl text-[2rem] leading-[1.1] sm:text-[2.75rem]">{info?.name ?? event.name}</h1><a href={officialUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center gap-2 text-sm text-white/45 hover:text-white">Open on Event.VEX <ArrowUpRight className="h-4 w-4" /></a><div className="mt-6 flex flex-wrap gap-x-8 gap-y-3 text-sm text-white/55"><span className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-[var(--c-accent)]" />{new Date(dateStart).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})} – {new Date(dateEnd).toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})}</span><span className="flex items-center gap-2"><MapPin className="h-4 w-4 text-[var(--c-accent)]" />{fullAddress}</span></div></div>
     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Metric label="Program" value={info?.program?.code ?? 'V5RC'} detail={info?.program?.name ?? 'VEX V5 Robotics Competition'} /><Metric label="Season" value={seasonYearLabel(info?.season?.name ?? event.season)} detail={info?.season?.name ?? event.season ?? 'Official season'} /><Metric label="Level class" value={event.levelClass ?? event.class ?? 'Other'} detail={event.eventType ?? 'Official competition'} /><Metric label="Registered teams" value={loading ? '…' : String(teamsList.length)} detail={loading ? 'Loading Event.VEX registrations' : 'Live registration list'} /></div>
@@ -568,13 +610,34 @@ function EventInfoView({ event, goBack, openTeam, openTeamAtEvent }: {event:any;
       {!loading&&!detailError&&tab==='general'&&<div className="grid gap-4 lg:grid-cols-[1fr_1.4fr]"><article className="border border-white/10 bg-[var(--c-surface)] p-6"><SectionTitle eyebrow="Event profile" title="Essential details" /><dl className="mt-4 text-sm">{[['Event code',event.sku ?? info?.sku],['Format',event.format],['Grade level',event.grade],['Event region',event.eventRegion ?? location?.region],['Venue',location?.venue],['Divisions',info?.divisions?.map((division:any)=>division.name).join(', ') || 'To be announced']].map(([label,value])=><div key={label as string} className="flex justify-between gap-6 border-b border-white/[.07] py-4"><dt className="text-white/55">{label}</dt><dd className="text-right font-bold">{value || 'Not listed'}</dd></div>)}</dl></article><article className="border border-white/10 bg-[var(--c-surface)] p-6"><SectionTitle eyebrow="From the organizer" title="What you need to know" />{generalSummary?<p className="mt-5 whitespace-pre-line text-sm leading-7 text-white/60">{generalSummary}</p>:<p className="mt-5 text-sm text-white/45">No additional organizer notes have been published yet.</p>}</article></div>}
       {!loading&&!detailError&&tab==='agenda'&&<article className="border border-white/10 bg-[var(--c-surface)] p-6"><SectionTitle eyebrow="Event schedule" title="Agenda" />{agendaData.notes.length>0&&<div className="mt-5 border-l-2 border-[var(--c-accent)] bg-white/[.025] px-4 py-3 text-xs leading-5 text-white/45">{agendaData.notes.join(' ')}</div>}<div className="mt-5 grid items-start gap-3 lg:grid-cols-3">{agendaData.days.map((day:any,index:number)=><section key={`${day.title}-${index}`} className="border border-white/10 p-5"><p className="text-[11px] italic text-white/45">Day {index+1}</p><h3 className="mt-2 text-xl font-semibold">{day.title}</h3>{day.entries.length?<div className="mt-4 divide-y divide-white/[.06]">{day.entries.map((entry:any,entryIndex:number)=><div key={`${entry.time}-${entryIndex}`} className="grid gap-1 py-3 text-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-3"><span className="font-semibold leading-5 text-white/65">{entry.activity}{entry.location&&<small className="block text-[10px] font-normal text-white/45">{entry.location}</small>}</span>{entry.time&&<time className="whitespace-nowrap text-right font-semibold text-white/75">{entry.time}</time>}</div>)}</div>:<p className="mt-4 text-sm text-white/55">Detailed times have not been published for this day.</p>}</section>)}</div>{!organizer.agenda&&<OfficialFallback href={officialUrl} text="Check the Event.VEX agenda" />}</article>}
       {!loading&&!detailError&&tab==='travel'&&<article className="border border-white/10 bg-[var(--c-surface)] p-6"><SectionTitle eyebrow="Plan your visit" title="Travel information" /><div className="mt-5 grid gap-4 md:grid-cols-2"><div className="border border-white/10 p-5"><p className="text-[11px] text-white/50">Venue</p><h3 className="mt-2 text-xl font-semibold">{location?.venue || 'Venue not announced'}</h3><p className="mt-2 text-sm leading-6 text-white/50">{fullAddress}</p><a href={mapsUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 border border-white/15 px-4 py-3 text-sm hover:bg-white hover:text-black">Open in maps <ArrowUpRight className="h-4 w-4" /></a></div><div className="border border-white/10 p-5"><p className="text-[11px] text-white/50">Organizer travel notes</p><h3 className="mt-2 text-xl font-semibold">Hotels, parking and arrival</h3>{organizer.travel?<p className="mt-3 whitespace-pre-line text-sm leading-7 text-white/60">{organizer.travel}</p>:<><p className="mt-2 text-sm leading-6 text-white/50">No organizer travel notes have been published yet.</p><OfficialFallback href={officialUrl} text="Check Event.VEX travel details" compact /></>}</div></div></article>}
-      {!loading&&!detailError&&tab==='webcast'&&<article className="border border-white/10 bg-[var(--c-surface)] p-6"><SectionTitle eyebrow="Watch live" title="Event webcast" /><div className="mt-5 border border-white/10 p-6"><h3 className="text-xl font-semibold">Webcast information</h3>{organizer.webcast?<p className="mt-3 whitespace-pre-line text-sm leading-7 text-white/60">{organizer.webcast}</p>:<p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">No webcast information has been published yet.</p>}<OfficialFallback href={officialUrl} text="Open webcast section on Event.VEX" /></div></article>}
+      {!loading&&!detailError&&tab==='webcast'&&<article className="border border-white/10 bg-[var(--c-surface)] p-6"><SectionTitle eyebrow="Watch live" title="Event webcast" /><div className="mt-5 border border-white/10 p-6"><h3 className="text-xl font-semibold">Webcast information</h3>{organizer.webcast?<p className="mt-3 whitespace-pre-line text-sm leading-7 text-white/60">{organizer.webcast}</p>:<p className="mt-2 max-w-2xl text-sm leading-6 text-white/50">No webcast information has been published yet.</p>}<div className="mt-5"><WatchButton /></div><OfficialFallback href={officialUrl} text="Open webcast section on Event.VEX" /></div></article>}
       {!loading&&!detailError&&tab==='results'&&info?.program?.code==='VIQRC'&&<IQEventResults openTeamAtEvent={(team:any)=>openTeamAtEvent({...team,seasonId:info?.season?.id,season:info?.season?.name})} divisions={divisions} skills={eventSkills} resultsTab={resultsTab} setResultsTab={setResultsTab} skillsMode={skillsMode} setSkillsMode={setSkillsMode} qualificationView={qualificationView} setQualificationView={setQualificationView} />}
       {!loading&&!detailError&&tab==='results'&&info?.program?.code!=='VIQRC'&&<EventResults openTeamAtEvent={(team:any)=>openTeamAtEvent({...team,seasonId:info?.season?.id,season:info?.season?.name})} divisions={divisions} skills={eventSkills} resultsTab={resultsTab} setResultsTab={setResultsTab} skillsMode={skillsMode} setSkillsMode={setSkillsMode} qualificationView={qualificationView} setQualificationView={setQualificationView} />}
       {!loading&&!detailError&&tab==='awards'&&<article className="border border-white/10 bg-[var(--c-surface)] p-6"><SectionTitle eyebrow="Official honors" title="Awards" />{awards.length?<div className="mt-5 grid gap-3 md:grid-cols-2">{awards.map((award:any)=><div key={award.id} className="border border-white/10 p-5"><p className="text-[11px] italic text-white/45">{award.designation || award.classification || 'Award'}</p><h3 className="mt-2 text-lg font-semibold">{award.title}</h3>{award.teamWinners?.map((winner:any)=><p key={winner.team?.id ?? winner.team?.name} className="mt-2 text-sm text-white/55"><b className="text-white">{winner.team?.name || winner.team?.number}</b>{winner.team?.team_name?` · ${winner.team.team_name}`:''}</p>)}{award.individualWinners?.map((winner:any,index:number)=><p key={index} className="mt-2 text-sm text-white/55">{winner.name}{winner.team?.name?` · ${winner.team.name}`:''}</p>)}</div>)}</div>:<Empty text="Awards have not been published for this event yet." />}</article>}
       {!loading&&!detailError&&tab==='teams'&&<article className="overflow-hidden border border-white/10 bg-[var(--c-surface)]"><SectionTitle eyebrow="Live registration" title="Teams attending" />{teamsList.length ? <div className="max-h-[650px] overflow-auto"><Table><TableHeader><TableRow className="border-white/10 hover:bg-transparent"><TableHead className="px-5">Team</TableHead><TableHead>Organization</TableHead><TableHead>Grade</TableHead><TableHead className="px-5 text-right">Location</TableHead></TableRow></TableHeader><TableBody>{teamsList.map((team:any)=><TableRow key={team.id} tabIndex={0} role="link" onKeyDown={e=>{if(e.key==='Enter')openTeam({...team,seasonId:info?.season?.id,season:info?.season?.name})}} onClick={()=>openTeam({...team,region:[team.location?.region,team.location?.country].filter(Boolean).join(', '),country:team.location?.country,seasonId:info?.season?.id,season:info?.season?.name??event.season})} className="cursor-pointer border-white/[.07] hover:bg-white/[.04]"><TableCell className="px-5"><b>{team.number}</b><small className="ml-2 text-white/50">{team.name}</small></TableCell><TableCell className="text-white/55">{team.organization || '—'}</TableCell><TableCell className="text-white/55">{team.grade || '—'}</TableCell><TableCell className="px-5 text-right text-white/45">{[team.location?.city,team.location?.region,team.location?.country].filter(Boolean).join(', ')}</TableCell></TableRow>)}</TableBody></Table></div> : <Empty text="No registered teams are listed yet." />}</article>}
     </div>
-  </section>;
+  </section></JumperProvider>;
+}
+
+// The livestream page (components/stream-jumper.tsx), with the event loaded
+// the way the event page loads it: cached, live while matches are played, and
+// the organizer's notes - where the stream link is - merged in when they land.
+function LivestreamView({ event, target, goBack, backLabel }: { event:any; target:{matchId?:number;team?:string}|null; goBack:()=>void; backLabel:string }) {
+  const [details,setDetails]=useState<any>(()=>eventDetailCache.get(String(event.id))??null);
+  const [error,setError]=useState('');
+  const [retry,setRetry]=useState(0);
+  useEffect(()=>{
+    let active=true;
+    if(!eventDetailCache.has(String(event.id)))setDetails(null);
+    setError('');
+    cachedJson(eventDetailUrl(event.id),eventDetailCache,String(event.id)).then((data:any)=>{if(active)setDetails(data)}).catch(failure=>{if(active)setError(failure.message)});
+    return()=>{active=false};
+  },[event.id,retry]);
+  useLiveEvent(event.id,details,setDetails,eventDetailCache);
+  useOrganizerNotes(event.id,details,setDetails);
+  if(error)return <section className="mx-auto max-w-[1440px] px-5 py-10 lg:px-8"><LoadError message={error} retry={()=>{eventDetailCache.delete(String(event.id));setRetry(value=>value+1)}} /></section>;
+  if(!details)return <section className="mx-auto max-w-[1440px] px-5 py-10 text-sm text-white/55 lg:px-8">Loading the event…</section>;
+  return <LivestreamPage event={event} details={details} initialMatchId={target?.matchId??null} initialTeam={target?.team} goBack={goBack} backLabel={backLabel} />;
 }
 
 function OfficialFallback({href,text,compact=false}:{href:string;text:string;compact?:boolean}) {
@@ -588,11 +651,11 @@ function EventResults({openTeamAtEvent,divisions,skills,resultsTab,setResultsTab
   const visibleDivisions=divisions.length?[divisions[activeDivisionIndex]]:[];
   const skillTeams=Array.from(skills.reduce((map:Map<string,any>,run:any)=>{const key=String(run.team?.id ?? run.team?.name);const row=map.get(key)??{team:run.team,driver:0,auto:0};const type=String(run.type).toLowerCase();if(type.includes('driver'))row.driver=Math.max(row.driver,run.score??0);else row.auto=Math.max(row.auto,run.score??0);map.set(key,row);return map},new Map()).values()).map((row:any)=>({...row,combined:row.driver+row.auto})).sort((a:any,b:any)=>b[skillsMode]-a[skillsMode]);
   const resultTabs=[['qualification','Qualification'],['elimination','Elimination'],['skills','Skills ranking']];
-  return <article className="border border-white/10 bg-[var(--c-surface)] p-6"><SectionTitle eyebrow="Official competition data" title="Results" />
+  return <article className="border border-white/10 bg-[var(--c-surface)] p-6"><SectionTitle eyebrow="Official competition data" title="Results" /><div className="mt-4"><WatchButton /></div>
     <div className="mt-5 flex flex-wrap border border-white/10">{resultTabs.map(([key,label])=><button key={key} onClick={()=>setResultsTab(key)} aria-pressed={resultsTab===key} className={`border-r border-white/10 px-5 py-3 text-xs font-semibold uppercase tracking-wider transition-colors ${resultsTab===key?'bg-white text-black':'text-white/45 hover:text-white'}`}>{label}</button>)}</div>
     {resultsTab!=='skills'&&divisions.length>1&&<div className="mt-4 flex flex-wrap items-center border border-white/10 bg-black/15"><span className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[.16em] text-white/50">Division</span>{divisions.map((division:any,index:number)=><button key={division.id??index} onClick={()=>setDivisionIndex(index)} aria-pressed={activeDivisionIndex===index} className={`border-l border-white/10 px-5 py-3 text-xs font-semibold uppercase tracking-wider transition-colors ${activeDivisionIndex===index?'bg-[var(--c-accent)] text-[var(--c-on-accent)]':'text-white/50 hover:bg-white/[.04] hover:text-white'}`}>{division.name||`Division ${index+1}`}</button>)}</div>}
-    {resultsTab==='qualification'&&<div className="mt-5"><div className="mb-4 flex gap-2">{[['ranking','Rankings'],['matches','Match results']].map(([key,label])=><button key={key} onClick={()=>setQualificationView(key)} aria-pressed={qualificationView===key} className={`min-h-10 border px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${qualificationView===key?'border-[var(--c-accent)] bg-[var(--c-accent)] text-[var(--c-on-accent)]':'border-white/10 text-white/45 hover:text-white'}`}>{label}</button>)}</div><div className="space-y-8">{visibleDivisions.some((division:any)=>division.rankings.length||qualificationMatches(division).length)?visibleDivisions.map((division:any)=><section key={division.id}><h3 className="mb-3 text-lg font-semibold">{division.name || 'Division'}</h3>{qualificationView==='ranking'?(division.rankings.length>0?<div className="overflow-x-auto border border-white/10"><Table><TableHeader><TableRow className="border-white/10"><TableHead className="px-4">Rank</TableHead><TableHead>Team</TableHead><TableHead>Record</TableHead><TableHead className="text-right">WP / AP / SP</TableHead></TableRow></TableHeader><TableBody>{division.rankings.slice().sort((a:any,b:any)=>Number(a.rank)-Number(b.rank)).map((row:any)=><TableRow key={row.team?.id} className="border-white/[.07] hover:bg-white/[.04]"><TableCell className="px-4 font-semibold">#{row.rank}</TableCell><TableCell><button onClick={()=>openTeamAtEvent({id:row.team?.id,number:row.team?.name})} aria-label={`${row.team?.name} match history`} className="inline-flex items-center font-bold hover:text-[var(--c-accent)]">{row.team?.name || row.team?.number}<ChevronRight className="ml-1 h-3.5 w-3.5 text-white/30" aria-hidden="true" /></button></TableCell><TableCell>{row.wins}–{row.losses}–{row.ties}</TableCell><TableCell className="text-right font-mono text-white/50">{row.wp} / {row.ap} / {row.sp}</TableCell></TableRow>)}</TableBody></Table></div>:<Empty text="Qualification rankings have not been posted yet." />):<MatchGrid matches={qualificationMatches(division)} empty="Qualification match results have not been posted yet." />}</section>):<Empty text="Qualification rankings and matches have not been posted yet." />}</div></div>}
-    {resultsTab==='elimination'&&<div className="mt-5"><div className="mb-5 flex gap-2">{([['classic','Classic view'],['bracket','Bracket view']] as const).map(([key,label])=><button key={key} onClick={()=>setEliminationView(key)} aria-pressed={eliminationView===key} className={`min-h-10 border px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${eliminationView===key?'border-[var(--c-accent)] bg-[var(--c-accent)] text-[var(--c-on-accent)]':'border-white/10 text-white/45 hover:text-white'}`}>{label}</button>)}</div><div className="space-y-8">{visibleDivisions.some((division:any)=>eliminationMatches(division).length)?visibleDivisions.map((division:any)=><section key={division.id}><h3 className="mb-3 text-lg font-semibold">{division.name || 'Division'}</h3>{eliminationView==='classic'?<MatchGrid matches={eliminationMatches(division)} empty="Elimination match results have not been posted yet." />:<EliminationBracket division={division} divisionNames={finalistDivisions(division,divisions)} />}</section>):<Empty text="Elimination matches have not been posted yet." />}</div></div>}
+    {resultsTab==='qualification'&&<div className="mt-5"><div className="mb-4 flex gap-2">{[['ranking','Rankings'],['matches','Match results']].map(([key,label])=><button key={key} onClick={()=>setQualificationView(key)} aria-pressed={qualificationView===key} className={`min-h-10 border px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${qualificationView===key?'border-[var(--c-accent)] bg-[var(--c-accent)] text-[var(--c-on-accent)]':'border-white/10 text-white/45 hover:text-white'}`}>{label}</button>)}</div><div className="space-y-8">{visibleDivisions.some((division:any)=>division.rankings.length||qualificationMatches(division).length)?visibleDivisions.map((division:any)=><section key={division.id}><h3 className="mb-3 text-lg font-semibold">{division.name || 'Division'}</h3>{qualificationView==='ranking'?(division.rankings.length>0?<div className="overflow-x-auto border border-white/10"><Table><TableHeader><TableRow className="border-white/10"><TableHead className="px-4">Rank</TableHead><TableHead>Team</TableHead><TableHead>Record</TableHead><TableHead className="text-right">WP / AP / SP</TableHead></TableRow></TableHeader><TableBody>{division.rankings.slice().sort((a:any,b:any)=>Number(a.rank)-Number(b.rank)).map((row:any)=><TableRow key={row.team?.id} className="border-white/[.07] hover:bg-white/[.04]"><TableCell className="px-4 font-semibold">#{row.rank}</TableCell><TableCell><button onClick={()=>openTeamAtEvent({id:row.team?.id,number:row.team?.name})} aria-label={`${row.team?.name} match history`} className="inline-flex items-center font-bold hover:text-[var(--c-accent)]">{row.team?.name || row.team?.number}<ChevronRight className="ml-1 h-3.5 w-3.5 text-white/30" aria-hidden="true" /></button></TableCell><TableCell>{row.wins}–{row.losses}–{row.ties}</TableCell><TableCell className="text-right font-mono text-white/50">{row.wp} / {row.ap} / {row.sp}</TableCell></TableRow>)}</TableBody></Table></div>:<Empty text="Qualification rankings have not been posted yet." />):<MatchTable matches={qualificationMatches(division)} rulings={officialRulings(division)} openTeam={(number:string)=>openTeamAtEvent({number})} empty="Qualification matches have not been posted yet." />}</section>):<Empty text="Qualification rankings and matches have not been posted yet." />}</div></div>}
+    {resultsTab==='elimination'&&<div className="mt-5"><div className="mb-5 flex gap-2">{([['classic','Classic view'],['bracket','Bracket view']] as const).map(([key,label])=><button key={key} onClick={()=>setEliminationView(key)} aria-pressed={eliminationView===key} className={`min-h-10 border px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${eliminationView===key?'border-[var(--c-accent)] bg-[var(--c-accent)] text-[var(--c-on-accent)]':'border-white/10 text-white/45 hover:text-white'}`}>{label}</button>)}</div><div className="space-y-8">{visibleDivisions.some((division:any)=>eliminationMatches(division).length)?visibleDivisions.map((division:any)=><section key={division.id}><h3 className="mb-3 text-lg font-semibold">{division.name || 'Division'}</h3>{eliminationView==='classic'?<MatchTable matches={eliminationMatches(division)} selections={allianceSelections(division)} openTeam={(number:string)=>openTeamAtEvent({number})} empty="Elimination matches have not been posted yet." />:<EliminationBracket division={division} divisionNames={finalistDivisions(division,divisions)} />}</section>):<Empty text="Elimination matches have not been posted yet." />}</div></div>}
     {resultsTab==='skills'&&<div className="mt-5"><div className="mb-4 flex flex-wrap gap-2">{[['driver','Driver skills'],['auto','Auto skills'],['combined','Combined skills']].map(([key,label])=><button key={key} onClick={()=>setSkillsMode(key)} aria-pressed={skillsMode===key} className={`min-h-10 border px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${skillsMode===key?'border-[var(--c-accent)] bg-[var(--c-accent)] text-[var(--c-on-accent)]':'border-white/10 text-white/45 hover:text-white'}`}>{label}</button>)}</div>{skillTeams.length?<div className="overflow-x-auto border border-white/10"><Table><TableHeader><TableRow className="border-white/10"><TableHead className="w-20 px-4">Rank</TableHead><TableHead>Team</TableHead><TableHead className="text-right">Driver</TableHead><TableHead className="text-right">Auto</TableHead><TableHead className="px-4 text-right">Combined</TableHead></TableRow></TableHeader><TableBody>{skillTeams.map((row:any,index:number)=><TableRow key={row.team?.id ?? index} className="border-white/[.07]"><TableCell className="px-4 font-semibold">#{index+1}</TableCell><TableCell><b>{row.team?.name || row.team?.number}</b></TableCell><TableCell className="text-right font-mono">{row.driver}</TableCell><TableCell className="text-right font-mono">{row.auto}</TableCell><TableCell className="px-4 text-right font-mono font-semibold">{row.combined}</TableCell></TableRow>)}</TableBody></Table></div>:<Empty text="Skills scores have not been posted yet." />}</div>}
   </article>;
 }
@@ -605,38 +668,98 @@ function EventResults({openTeamAtEvent,divisions,skills,resultsTab,setResultsTab
  */
 function IQEventResults({openTeamAtEvent,divisions,skills,resultsTab,setResultsTab,skillsMode,setSkillsMode,qualificationView,setQualificationView}:any) {
   const [divisionIndex,setDivisionIndex]=useState(0);
-  // A final-only division holds the cross-division finals and no standings;
-  // with finals not served, it would only ever be an empty choice.
-  const seeded=divisions.filter((division:any)=>(division.rankings??[]).length||(division.matches??[]).length);
+  // A final-only division holds the cross-division finals and no standings, so
+  // it belongs under Finals, not Qualification.
+  const seeded=divisions.filter((division:any)=>(division.rankings??[]).length||(division.matches??[]).some((match:any)=>Number(match.round)===2));
+  const finalsDivisions=divisions.map((division:any)=>({division,finals:iqFinals(division)})).filter((entry:any)=>entry.finals.matches.length);
   const activeIndex=Math.min(divisionIndex,Math.max(0,seeded.length-1));
   const division=seeded[activeIndex];
-  const tab=resultsTab==='skills'?'skills':'qualification';
+  const tab=resultsTab==='skills'?'skills':resultsTab==='finals'&&finalsDivisions.length?'finals':'qualification';
   const skillTeams=Array.from(skills.reduce((map:Map<string,any>,run:any)=>{const key=String(run.team?.id ?? run.team?.name);const row=map.get(key)??{team:run.team,driver:0,coding:0};if(String(run.type).toLowerCase().includes('driver'))row.driver=Math.max(row.driver,run.score??0);else row.coding=Math.max(row.coding,run.score??0);map.set(key,row);return map},new Map()).values()).map((row:any)=>({...row,combined:row.driver+row.coding})).sort((a:any,b:any)=>b[skillsMode==='auto'?'coding':skillsMode]-a[skillsMode==='auto'?'coding':skillsMode]);
   const rows=division?iqDivisionStandings(division):[];
   const qualifying=(division?.matches??[]).filter((match:any)=>Number(match.round)===2||/qual|teamwork/i.test(match.name??''));
   const segment=(active:boolean)=>`min-h-10 border px-4 py-2 text-xs font-semibold uppercase tracking-wider transition-colors ${active?'border-[var(--c-accent)] bg-[var(--c-accent)] text-[var(--c-on-accent)]':'border-white/10 text-white/45 hover:text-white'}`;
-  return <article className="border border-white/10 bg-[var(--c-surface)] p-6"><SectionTitle eyebrow="Official competition data" title="Results" />
-    <div className="mt-5 flex flex-wrap border border-white/10">{([['qualification','Qualification'],['skills','Skills ranking']] as const).map(([key,label])=><button key={key} onClick={()=>setResultsTab(key)} aria-pressed={tab===key} className={`border-r border-white/10 px-5 py-3 text-xs font-semibold uppercase tracking-wider transition-colors ${tab===key?'bg-white text-black':'text-white/45 hover:text-white'}`}>{label}</button>)}</div>
+  return <article className="border border-white/10 bg-[var(--c-surface)] p-6"><SectionTitle eyebrow="Official competition data" title="Results" /><div className="mt-4"><WatchButton /></div>
+    <div className="mt-5 flex flex-wrap border border-white/10">{([['qualification','Qualification'],...(finalsDivisions.length?[['finals','Finals']]:[]),['skills','Skills ranking']] as [string,string][]).map(([key,label])=><button key={key} onClick={()=>setResultsTab(key)} aria-pressed={tab===key} className={`border-r border-white/10 px-5 py-3 text-xs font-semibold uppercase tracking-wider transition-colors ${tab===key?'bg-white text-black':'text-white/45 hover:text-white'}`}>{label}</button>)}</div>
     {tab==='qualification'&&seeded.length>1&&<div className="mt-4 flex flex-wrap items-center border border-white/10 bg-black/15"><span className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[.16em] text-white/50">Division</span>{seeded.map((entry:any,index:number)=><button key={entry.id??index} onClick={()=>setDivisionIndex(index)} aria-pressed={activeIndex===index} className={`border-l border-white/10 px-5 py-3 text-xs font-semibold uppercase tracking-wider transition-colors ${activeIndex===index?'bg-[var(--c-accent)] text-[var(--c-on-accent)]':'text-white/50 hover:bg-white/[.04] hover:text-white'}`}>{entry.name||`Division ${index+1}`}</button>)}</div>}
     {tab==='qualification'&&<div className="mt-5"><div className="mb-4 flex gap-2">{[['ranking','Rankings'],['matches','Teamwork matches']].map(([key,label])=><button key={key} onClick={()=>setQualificationView(key)} aria-pressed={qualificationView===key} className={segment(qualificationView===key)}>{label}</button>)}</div>
       {!division?<Empty text="Qualification rankings and matches have not been posted yet." />:<section><h3 className="mb-3 text-lg font-semibold">{division.name || 'Division'}</h3>
         {qualificationView==='ranking'?(rows.length?<><div className="overflow-x-auto border border-white/10"><Table><TableHeader><TableRow className="border-white/10"><TableHead className="px-4">Rank</TableHead><TableHead>Team</TableHead><TableHead className="text-right">Avg score</TableHead><TableHead className="px-4 text-right">High score</TableHead></TableRow></TableHeader><TableBody>{rows.map((row:any)=><TableRow key={row.team?.id??row.number} className="border-white/[.07] hover:bg-white/[.04]"><TableCell className="px-4 font-semibold">#{row.rank}</TableCell><TableCell><button onClick={()=>openTeamAtEvent({id:row.team?.id,number:row.number})} aria-label={`${row.number} match history`} className="inline-flex items-center font-bold hover:text-[var(--c-accent)]">{row.number}<ChevronRight className="ml-1 h-3.5 w-3.5 text-white/30" aria-hidden="true" /></button></TableCell><TableCell className="text-right font-mono">{row.average!=null?row.average.toFixed(1):'—'}</TableCell><TableCell className="px-4 text-right font-mono text-white/70">{row.highScore??'—'}</TableCell></TableRow>)}</TableBody></Table></div>{rows.some((row:any)=>!row.averageFromEvent)&&<p className="mt-3 text-xs text-white/50">Average is the mean of each team’s played qualification scores. Rank is the event’s own.</p>}</>:<Empty text="Qualification rankings have not been posted yet." />)
-        :<TeamworkGrid matches={qualifying} />}
+        :<TeamworkGrid matches={qualifying} rulings={officialRulings(division,{iq:true})} />}
       </section>}
     </div>}
+    {tab==='finals'&&<div className="mt-5 space-y-8">{finalsDivisions.map(({division:finalsDivision,finals}:any)=><section key={finalsDivision.id??finalsDivision.name}>
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2"><h3 className="text-lg font-semibold">{finalsDivision.name||'Finals'}</h3><p className="text-xs text-white/50">{finals.pending?`${finals.pending} of ${finals.matches.length} finals still to play`:'All finals played'}</p></div>
+      {finals.standings.length?<div className="overflow-x-auto border border-white/10"><Table><TableHeader><TableRow className="border-white/10"><TableHead className="px-4">Place</TableHead><TableHead>Teams</TableHead><TableHead className="px-4 text-right">Score</TableHead></TableRow></TableHeader><TableBody>{finals.standings.map((row:any)=><TableRow key={row.teams.join('+')} className="border-white/[.07]"><TableCell className="px-4 font-semibold">{row.place}{row.tied?<span className="ml-1 text-xs font-normal text-white/50">tied</span>:null}</TableCell><TableCell>{row.teams.map((number:string,index:number)=><span key={number}>{index>0&&<span className="text-white/45"> + </span>}<button onClick={()=>openTeamAtEvent({number})} className="font-semibold hover:text-[var(--c-accent)]">{number}</button></span>)}</TableCell><TableCell className="px-4 text-right font-mono text-lg font-semibold">{row.score}{row.tiebreak!==null?<span className="ml-2 text-xs font-normal text-white/50">tiebreak {row.tiebreak}</span>:null}</TableCell></TableRow>)}</TableBody></Table></div>:<p className="text-sm text-white/50">No finals scores have been posted yet.</p>}
+      <h4 className="mt-6 text-sm font-semibold uppercase tracking-wider text-white/55">Schedule and results</h4>
+      <TeamworkGrid matches={(finalsDivision.matches??[]).filter((match:any)=>Number(match.round)===15)} />
+      <p className="mt-3 text-xs text-white/45">Placed by the score each pair shared, from posted results. The event's official placings are final.</p>
+    </section>)}</div>}
     {tab==='skills'&&<div className="mt-5"><div className="mb-4 flex flex-wrap gap-2">{[['driver','Driver skills'],['auto','Coding skills'],['combined','Combined skills']].map(([key,label])=><button key={key} onClick={()=>setSkillsMode(key)} aria-pressed={skillsMode===key} className={segment(skillsMode===key)}>{label}</button>)}</div>{skillTeams.length?<div className="overflow-x-auto border border-white/10"><Table><TableHeader><TableRow className="border-white/10"><TableHead className="w-20 px-4">Rank</TableHead><TableHead>Team</TableHead><TableHead className="text-right">Driver</TableHead><TableHead className="text-right">Coding</TableHead><TableHead className="px-4 text-right">Combined</TableHead></TableRow></TableHeader><TableBody>{skillTeams.map((row:any,index:number)=><TableRow key={row.team?.id ?? index} className="border-white/[.07]"><TableCell className="px-4 font-semibold">#{index+1}</TableCell><TableCell><b>{row.team?.name || row.team?.number}</b></TableCell><TableCell className="text-right font-mono">{row.driver}</TableCell><TableCell className="text-right font-mono">{row.coding}</TableCell><TableCell className="px-4 text-right font-mono font-semibold">{row.combined}</TableCell></TableRow>)}</TableBody></Table></div>:<Empty text="Skills scores have not been posted yet." />}</div>}
   </article>;
 }
 
 /** Teamwork match cards: the pair and the score they shared. No colours or winner. */
-function TeamworkGrid({matches}:{matches:any[]}) {
+function TeamworkGrid({matches,rulings}:{matches:any[];rulings?:any}) {
   if(!matches.length)return <p className="mt-3 text-sm text-white/50">Teamwork match results have not been posted yet.</p>;
-  return <div className="mt-4 grid gap-2 md:grid-cols-2">{matches.map((match:any)=>{const pair=teamworkPair(match);return <div key={match.id} className="border border-white/10 p-4"><div className="flex items-baseline justify-between gap-3"><b>{pair.name}</b><span className="text-[11px] text-white/50">{pair.played?(pair.field||'Played'):'Not played'}</span></div><div className="mt-3 flex items-end justify-between gap-4"><span className="min-w-0 text-sm text-white/75">{pair.teams.length?pair.teams.join(' + '):'Teams not assigned'}</span><span className="font-mono text-2xl font-semibold">{pair.score??'—'}</span></div></div>})}</div>;
+  return <div className="mt-4 grid gap-2 md:grid-cols-2">{matches.map((match:any)=>{const pair=teamworkPair(match);return <div key={match.id} className="border border-white/10 p-4"><div className="flex items-baseline justify-between gap-3"><b>{pair.name}</b><span className="text-[11px] text-white/50">{pair.played?(pair.field||'Played'):pair.scheduled?`${new Date(pair.scheduled).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}${pair.field?` · ${pair.field}`:''}`:'Not scheduled'}</span></div><div className="mt-3 flex items-end justify-between gap-4"><span className="min-w-0 text-sm text-white/75">{pair.teams.length?pair.teams.join(' + '):'Teams not assigned'}</span><span className="font-mono text-2xl font-semibold">{pair.score??'—'}</span></div>{rulings&&<div className="mt-2">{rulingTags(rulings,match,pair.teams)}</div>}</div>})}</div>;
 }
 
 function qualificationMatches(division:any) { return (division.matches??[]).filter((match:any)=>Number(match.round)===2||/qual/i.test(match.name??'')).sort((a:any,b:any)=>Number(a.matchnum)-Number(b.matchnum)); }
 function eliminationMatches(division:any) { const order=(round:number)=>round===6?0:round;return (division.matches??[]).filter((match:any)=>Number(match.round)>=3&&!/qual|practice/i.test(match.name??'')).sort((a:any,b:any)=>order(Number(a.round))-order(Number(b.round))||Number(a.matchnum)-Number(b.matchnum)); }
-function MatchGrid({matches,empty='No scored matches in this section yet.'}:{matches:any[];empty?:string}) { return matches.length?<div className="mt-4 grid gap-2 md:grid-cols-2">{matches.map((match:any)=>{const hasScore=(match.alliances??[]).some((alliance:any)=>alliance.score!==null&&alliance.score!==undefined&&Number(alliance.score)>=0);return <div key={match.id} className="border border-white/10 p-4"><div className="mb-3 flex items-center justify-between"><div><b>{match.name}</b><small className="mt-1 block text-white/50">{match.field || (hasScore?'Final score':'Scheduled')}</small></div><span className="text-[10px] text-[11px] text-white/50">{hasScore?'Final':'Not played'}</span></div><div className="grid grid-cols-2 gap-2">{[...(match.alliances??[])].sort((a:any,b:any)=>(a.color==='red'?0:1)-(b.color==='red'?0:1)).map((alliance:any)=><div key={alliance.color} className={`border-l-2 pl-3 ${alliance.color==='red'?'border-red-400':'border-blue-400'}`}><div className={`font-mono text-lg font-semibold ${alliance.color==='red'?'text-red-400':'text-blue-400'}`}>{hasScore&&alliance.score!=null?alliance.score:'—'}</div><small className="block truncate text-white/45">{allianceTeams(alliance)}</small></div>)}</div></div>})}</div>:<p className="mt-3 text-sm text-white/50">{empty}</p>; }
+/** A team's official ruling in a match (lib/disqualifications.mjs): DQ and ruled losses in red, ruled wins in green. */
+function RulingTag({team,ruling}:{team:string;ruling:string}) {
+  return <span title={ruling==='dq'?'Disqualified or did not show: this station scored less than its partner, though they share one score.':ruling==='ruled-loss'?'The official standings count this as a loss although the alliance won on score.':'The official standings count this as a win although the alliance did not win on score.'} className={`mr-1.5 inline-block text-[10px] font-bold uppercase tracking-wider ${ruling==='ruled-win'?'text-emerald-400':'text-rose-400'}`}>{team} · {RULING_LABELS[ruling as keyof typeof RULING_LABELS]}</span>;
+}
+const rulingTags=(rulings:any,match:any,teams:string[])=>teams.map(team=>{const ruling=rulingFor(rulings,match,team);return ruling?<RulingTag key={team} team={team} ruling={ruling} />:null}).filter(Boolean);
+
+/**
+ * V5 schedule and results as a table, after OpenScout: the match (name, time,
+ * field), each alliance in a tinted cell with the winner's teams bold, and the
+ * two scores between them with the loser's dimmed. A day divider marks each new
+ * day of a multi-day event. `focus` is the team whose page this is: its number
+ * stands out and the rest are quieter.
+ */
+function MatchTable({matches,rulings,focus,openTeam,selections=[],empty='No matches are listed yet.'}:{matches:any[];selections?:any[];rulings?:any;focus?:string;openTeam?:(number:string)=>void;empty?:string}) {
+  if(!matches.length)return <p className="mt-3 text-sm text-white/50">{empty}</p>;
+  // Alliance selection, as on OpenScout: between the last qualification match
+  // and the first elimination match, who picked whom and as which seed.
+  const firstElimination=matches.findIndex((match:any)=>Number(match.round)>=3&&Number(match.round)<=6);
+  const teamLink=(number:string)=>{const focused=focus&&number.toUpperCase()===focus.toUpperCase();return <button onClick={()=>openTeam?.(number)} className={`font-mono font-bold transition-colors hover:text-[var(--c-accent)] ${focused?'text-[var(--c-accent)] underline decoration-2 underline-offset-4':'text-white'}`}>{number}</button>};
+  const selectionRows=firstElimination>=0&&selections.length?<Fragment key="selections"><tr className="border-t border-white/10 bg-white/[.03]"><td colSpan={4} className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/50">Alliance selection</td></tr>{selections.map((alliance:any)=><tr key={`seed-${alliance.seed}`} className="border-t border-white/[.07]"><td colSpan={4} className="px-3 py-2.5 text-[13px] text-white/70"><span className="mr-2 inline-block min-w-9 rounded-sm bg-[var(--c-accent)]/15 px-1.5 py-0.5 text-center font-mono text-[11px] font-bold text-[var(--c-accent)]">#{alliance.seed}</span>Team {teamLink(alliance.captain)} <span className="text-white/50">selects</span> Team {teamLink(alliance.pick)} <span className="text-white/50">as the</span> {ordinalSeed(alliance.seed)} seed alliance</td></tr>)}</Fragment>:null;
+  const dayOf=(match:any)=>match.scheduled?new Date(match.scheduled).toDateString():null;
+  const days=[...new Set(matches.map(dayOf).filter(Boolean))];
+  const side=(match:any,color:string)=>(match.alliances??[]).find((alliance:any)=>alliance.color===color);
+  const teamsOf=(alliance:any)=>(alliance?.teams??[]).map((entry:any)=>entry.team?.name).filter(Boolean);
+  const cell=(match:any,color:'red'|'blue',winner:string|null)=>{const alliance=side(match,color);const teams=teamsOf(alliance);return <td className={`px-3 py-2.5 align-middle ${color==='red'?'bg-red-500/[.09]':'bg-blue-500/[.09]'}`}>
+    <span className="flex flex-wrap items-center gap-x-2.5 gap-y-1">{teams.length?teams.map((number:string)=>{const focused=focus&&number.toUpperCase()===focus.toUpperCase();const dq=rulingFor(rulings,match,number)==='dq';const link=<button key={number} onClick={()=>openTeam?.(number)} className={`font-mono text-[13px] transition-colors hover:text-[var(--c-accent)] ${color==='red'?'text-red-300':'text-blue-300'} ${winner===color?'font-bold':''} ${focused?'!text-[var(--c-accent)] font-bold underline decoration-2 underline-offset-4':focus?'opacity-70':''}`}>{number}</button>;
+      // Disqualified: the number with an amber DQ badge, as on OpenScout.
+      return dq?<span key={number} title="Disqualified in this match (inferred from the official standings)" className="inline-flex items-center gap-1.5 rounded-sm bg-amber-400/15 px-1.5 py-0.5">{link}<span className="rounded-sm bg-amber-400/25 px-1 text-[10px] font-bold text-amber-200">DQ</span></span>:link}):<span className="text-white/40">—</span>}</span></td>};
+  // As on OpenScout: the winner's score in a filled chip, the loser's as plain
+  // text in its colour, outlined when it is the page's own team that lost.
+  const score=(value:any,color:'red'|'blue',winner:string|null,focusSide:string|null)=>{const won=winner===color;const ownLoss=focusSide===color&&winner&&!won;return <span className={`inline-block min-w-11 rounded-sm px-1.5 py-0.5 text-center font-mono text-[13px] font-semibold ${won?(color==='red'?'bg-red-500 text-white':'bg-blue-500 text-white'):color==='red'?'text-red-300':'text-blue-300'} ${ownLoss?(color==='red'?'ring-1 ring-inset ring-red-400':'ring-1 ring-inset ring-blue-400'):''}`}>{value??'—'}</span>};
+  let previousDay:string|null=null;
+  return <div className="mt-4 overflow-x-auto border border-white/10"><table className="w-full min-w-[520px] border-collapse text-sm"><thead><tr className="border-b border-white/10 text-left text-[10px] font-semibold uppercase tracking-wider text-white/50"><th className="px-3 py-2">Match</th><th className="px-3 py-2">Red alliance</th><th className="px-2 py-2 text-center">Score</th><th className="px-3 py-2">Blue alliance</th></tr></thead><tbody>
+    {matches.map((match:any,index:number)=>{
+      const day=dayOf(match);const divider=days.length>1&&day&&day!==previousDay?<tr key={`day-${match.id}`} className="border-t border-white/10 bg-white/[.03]"><td colSpan={4} className="px-3 py-1 text-[11px] text-white/50">Day {days.indexOf(day)+1} · {new Date(match.scheduled).toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}</td></tr>:null;
+      if(day)previousDay=day;
+      const red=side(match,'red'),blue=side(match,'blue');
+      const played=(match.alliances??[]).some((alliance:any)=>Number(alliance.score)>0);
+      const winner=played?(Number(red?.score)>Number(blue?.score)?'red':Number(blue?.score)>Number(red?.score)?'blue':null):null;
+      // The page's own team: which side it is on, and its result - a DQ is a loss.
+      const focusSide=focus?(['red','blue'] as const).find(color=>teamsOf(side(match,color)).some((number:string)=>number.toUpperCase()===focus.toUpperCase()))??null:null;
+      const focusResult=focusSide?(rulingFor(rulings,match,focus!)==='dq'||(winner&&winner!==focusSide)?'L':winner===focusSide?'W':'T'):null;
+      return <Fragment key={match.id}>{index===firstElimination&&selectionRows}{divider}<tr className="border-t border-white/[.07]">
+        <td className="px-3 py-2.5 align-middle"><b className="flex items-baseline gap-2 whitespace-nowrap text-[13px]">{focusSide&&played&&<span className={`w-3 text-[11px] font-bold ${focusResult==='W'?'text-emerald-400':focusResult==='L'?'text-rose-400':'text-white/60'}`} aria-label={focusResult==='W'?'Won':focusResult==='L'?'Lost':'Tied'}>{focusResult}</span>}{match.name}{played&&<JumpButton match={match} />}</b><span className="text-[11px] text-white/50">{[match.scheduled?new Date(match.scheduled).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}):null,match.field].filter(Boolean).join(' · ')||(played?'':'Not scheduled')}</span></td>
+        {cell(match,'red',winner)}
+        <td className="whitespace-nowrap px-2 py-2.5 text-center align-middle">{played?<span className="inline-flex items-center gap-1.5">{score(red?.score,'red',winner,focusSide)}{score(blue?.score,'blue',winner,focusSide)}</span>:<span className="text-xs text-white/40">—</span>}</td>
+        {cell(match,'blue',winner)}
+      </tr></Fragment>;
+    })}
+  </tbody></table></div>;
+}
+
+function MatchGrid({matches,empty='No scored matches in this section yet.',rulings}:{matches:any[];empty?:string;rulings?:any}) { return matches.length?<div className="mt-4 grid gap-2 md:grid-cols-2">{matches.map((match:any)=>{const hasScore=(match.alliances??[]).some((alliance:any)=>alliance.score!==null&&alliance.score!==undefined&&Number(alliance.score)>=0);return <div key={match.id} className="border border-white/10 p-4"><div className="mb-3 flex items-center justify-between"><div><b>{match.name}</b><small className="mt-1 block text-white/50">{match.field || (hasScore?'Final score':'Scheduled')}</small></div><span className="text-[10px] text-[11px] text-white/50">{hasScore?'Final':'Not played'}</span></div><div className="grid grid-cols-2 gap-2">{[...(match.alliances??[])].sort((a:any,b:any)=>(a.color==='red'?0:1)-(b.color==='red'?0:1)).map((alliance:any)=><div key={alliance.color} className={`border-l-2 pl-3 ${alliance.color==='red'?'border-red-400':'border-blue-400'}`}><div className={`font-mono text-lg font-semibold ${alliance.color==='red'?'text-red-400':'text-blue-400'}`}>{hasScore&&alliance.score!=null?alliance.score:'—'}</div><small className="block truncate text-white/45">{allianceTeams(alliance)}</small>{rulings&&<div className="mt-1">{rulingTags(rulings,match,(alliance.teams??[]).map((entry:any)=>entry.team?.name).filter(Boolean))}</div>}</div>)}</div></div>})}</div>:<p className="mt-3 text-sm text-white/50">{empty}</p>; }
 function allianceTeams(alliance:any) { const names=(alliance.teams??[]).map((entry:any)=>entry.team?.name??entry.team?.number??entry.name??entry.number).filter(Boolean);return names.length?names.join(' + '):'Teams not assigned'; }
 
 function EliminationBracket({division,divisionNames=[]}:{division:any;divisionNames?:string[]}) {
@@ -1030,7 +1153,7 @@ function TeamView({ team, goBack, backLabel, openEvent, openTeamAtEvent }: { tea
     </div>:historyError?<div className="mx-auto max-w-[1440px] px-5 py-8 lg:px-8"><div className="border border-rose-400/25 bg-rose-400/[.05] p-6"><p className="text-sm text-rose-200">{historyError}</p><button onClick={()=>{teamHistoryCache.delete(initialCacheKey);setRetry(value=>value+1)}} className="mt-4 border border-white/15 px-4 py-2 text-sm hover:bg-white hover:text-black">Retry</button></div></div>:<div className="mx-auto max-w-[1440px] px-5 py-8 lg:px-8"><Empty text="Loading team history…" /></div>}</section>;
 }
 
-function TeamEventView({ event, team, backLabel, goBack, openEvent, openTeam }: { event:any; team:any; backLabel:string; goBack:()=>void; openEvent:(event:any)=>void; openTeam:(team:any)=>void }) {
+function TeamEventView({ event, team, backLabel, goBack, openEvent, openTeam, openLive }: { event:any; team:any; backLabel:string; goBack:()=>void; openEvent:(event:any)=>void; openTeam:(team:any)=>void; openLive?:(target?:{matchId?:number;team?:string})=>void }) {
   const key=String(event.id);
   const [details,setDetails]=useState<any>(()=>eventDetailCache.get(key)??null);
   const [error,setError]=useState('');
@@ -1045,6 +1168,8 @@ function TeamEventView({ event, team, backLabel, goBack, openEvent, openTeam }: 
     cachedJson(eventDetailUrl(key),eventDetailCache,key).then((data:any)=>{if(active)setDetails(data)}).catch((failure:any)=>{if(active)setError(describeFetchError(failure,failure.message||'Event data could not be loaded.'))}).finally(()=>{if(active)setRefreshing(false)});
     return()=>{active=false};
   },[key,reload]);
+  useLiveEvent(key,details,setDetails,eventDetailCache);
+  useOrganizerNotes(key,details,setDetails);
   const number=String(team.number??'');
   // Read from the event itself, so a link into an IQ event is read as IQ
   // whatever program the reader last had selected.
@@ -1054,6 +1179,24 @@ function TeamEventView({ event, team, backLabel, goBack, openEvent, openTeam }: 
   const iqRow=useMemo(()=>details&&iq?iqStanding(details,number):null,[details,number,iq]);
   const profile=useMemo(()=>details?(iq?iqStrengthProfile(details,number):strengthProfile(details,number)):null,[details,number,iq]);
   const check=standing?recordCheck(standing,matches):null;
+  // Official rulings at this event, every division (lib/disqualifications.mjs).
+  const rulings=useMemo(()=>{const byMatch=new Map();for(const division of details?.divisions??[])for(const [id,list] of officialRulings(division,{iq}).byMatch)byMatch.set(id,list);return{byMatch}},[details,iq]);
+  // Matches, or the stats drawn from them (strengths, momentum), as separate tabs.
+  const [section,setSection]=useState<'matches'|'stats'>('matches');
+  // The team's V5 matches as the event lists them, in play order, for the table.
+  const teamTable=useMemo(()=>{
+    if(!details||iq)return [];
+    const wanted=number.toUpperCase();
+    const order=(round:number)=>round===2?0:round===6?1:round;
+    return (details.divisions??[]).flatMap((division:any)=>(division.matches??[]).filter((match:any)=>(match.alliances??[]).some((alliance:any)=>(alliance.teams??[]).some((entry:any)=>String(entry.team?.name??'').toUpperCase()===wanted))))
+      .sort((a:any,b:any)=>{const x=Date.parse(a.scheduled??''),y=Date.parse(b.scheduled??'');if(Number.isFinite(x)&&Number.isFinite(y)&&x!==y)return x-y;return order(Number(a.round))-order(Number(b.round))||Number(a.instance)-Number(b.instance)||Number(a.matchnum)-Number(b.matchnum)});
+  },[details,number,iq]);
+  // The team's own alliance selection: who picked whom, and the seed.
+  const teamSelection=useMemo(()=>{
+    if(!details||iq)return [];
+    const wanted=number.toUpperCase();
+    return (details.divisions??[]).flatMap((division:any)=>allianceSelections(division)).filter((alliance:any)=>[alliance.captain,alliance.pick].some((team:string)=>team.toUpperCase()===wanted));
+  },[details,number,iq]);
   const played=matches.filter((match:any)=>match.played);
   const upcoming=matches.filter((match:any)=>!match.played);
   const points=iq?[]:teamMomentum(matches);
@@ -1068,7 +1211,7 @@ function TeamEventView({ event, team, backLabel, goBack, openEvent, openTeam }: 
   const outcomeLabel=(match:any)=>({won:'Won',lost:'Lost',tied:'Tied'} as Record<string,string>)[match.outcome]??'';
   const matchRow=(match:any)=><li key={match.id} className="border-b border-white/[.07] px-5 py-4 last:border-b-0">
     <div className="flex items-baseline justify-between gap-4"><b className="text-sm">{match.name}</b>
-      {match.played?<span className={`text-[11px] font-bold uppercase tracking-wider ${check&&!check.agrees?'text-white/50':match.outcome==='won'?'text-emerald-400':match.outcome==='lost'?'text-rose-400':'text-white/60'}`}>{outcomeLabel(match)}{check&&!check.agrees?' on score':''}</span>
+      {match.played?(()=>{const ruling=rulingFor(rulings,match,number);const result=ruling==='ruled-loss'?'lost':ruling==='ruled-win'?'won':match.outcome;return <span title={ruling?'The official standings changed this result from what the scores say.':undefined} className={`text-[11px] font-bold uppercase tracking-wider ${result==='won'?'text-emerald-400':result==='lost'?'text-rose-400':'text-white/60'}`}>{ruling?RULING_LABELS[ruling as keyof typeof RULING_LABELS]:outcomeLabel(match)}</span>})()
         :match.scheduled?<time className="font-mono text-xs text-white/55">{new Date(match.scheduled).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}</time>:<span className="text-xs text-white/50">Not scheduled</span>}</div>
     <div className="mt-2 flex flex-wrap items-center gap-2.5"><span className={`px-1.5 py-0.5 text-[9px] font-bold text-white ${match.colour==='red'?'bg-red-500':'bg-blue-500'}`}>{match.colour==='red'?'RED':'BLUE'}</span>
       {match.played&&<span className="font-mono text-sm font-semibold">{match.scoreFor} – {match.scoreAgainst}</span>}
@@ -1080,13 +1223,14 @@ function TeamEventView({ event, team, backLabel, goBack, openEvent, openTeam }: 
   // they shared. No result, colour or opponent - an IQ match has none.
   const iqMatchRow=(match:any)=><li key={match.id} className="border-b border-white/[.07] px-5 py-4 last:border-b-0">
     <div className="flex items-baseline justify-between gap-4"><b className="text-sm">{match.name}</b>
-      {match.played?<span className="font-mono text-lg font-semibold">{match.score}</span>
+      {match.played?<span className="flex items-baseline gap-2">{rulingFor(rulings,match,number)==='dq'&&<span title="Disqualified or did not show: this station scored less than its partner, though they share one score." className="text-[11px] font-bold uppercase tracking-wider text-rose-400">DQ</span>}<span className="font-mono text-lg font-semibold">{match.score}</span></span>
         :match.scheduled?<time className="font-mono text-xs text-white/55">{new Date(match.scheduled).toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}</time>:<span className="text-xs text-white/50">Not scheduled</span>}</div>
     {(match.field||details?.divisions?.length>1)&&<div className="mt-1 flex flex-wrap items-center gap-2.5">{match.field&&<span className="text-xs text-white/50">{match.field}</span>}{details?.divisions?.length>1&&<span className="text-xs text-white/50">{match.division}</span>}</div>}
+ {match.played&&match.partners.some((partner:string)=>rulingFor(rulings,match,partner)==='dq')&&<p className="mt-1.5 text-[11px] font-bold uppercase tracking-wider text-rose-400">Partner {match.partners.filter((partner:string)=>rulingFor(rulings,match,partner)==='dq').join(', ')} · DQ</p>}
     {match.partners.length>0&&<p className="mt-1.5 text-xs text-white/75">{match.played?'Scored with':'With'} {match.partners.map((partner:string)=><button key={partner} onClick={()=>openTeam({number:partner,seasonId:info?.season?.id,season:info?.season?.name})} className="mr-1.5 font-semibold hover:text-[var(--c-accent)]">{partner}</button>)}</p>}
   </li>;
   const stat=(label:string,value:any,title?:string)=>value==null?null:<div key={label} title={title}><p className="text-[10px] font-semibold uppercase tracking-wider text-white/50">{label}</p><p className="mt-1 font-mono text-[15px]">{value}</p></div>;
-  return <section className="mx-auto max-w-[1440px] px-5 py-10 lg:px-8">
+  return <JumperProvider eventId={event.id} divisions={details?.divisions??[]} webcast={details?.organizer?.webcast} info={details?.event} onWatch={openLive&&((match?:any)=>openLive({matchId:match?Number(match.id):undefined,team:String(team.number??'')}))}><section className="mx-auto max-w-[1440px] px-5 py-10 lg:px-8">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <button onClick={goBack} className="-ml-1 flex min-h-11 items-center gap-2 px-1 text-sm font-bold text-white/50 transition-colors hover:text-white"><ArrowLeft className="h-4 w-4" /> Back to {backLabel}</button>
       {details&&<button onClick={retry} disabled={refreshing} className="border border-white/15 px-3 py-1.5 text-xs text-white/60 hover:text-white disabled:opacity-50">{refreshing?'Refreshing…':'Refresh results'}</button>}
@@ -1100,7 +1244,9 @@ function TeamEventView({ event, team, backLabel, goBack, openEvent, openTeam }: 
     {error&&<LoadError message={error} retry={retry} />}
     {!details&&!error&&<article className="mt-4 border border-white/10 bg-[var(--c-surface)] p-8 text-sm text-white/55">Loading official match results…</article>}
     {details&&<div className="view-enter">
-      <div className="mt-4 grid gap-4 xl:grid-cols-[1fr_1.6fr]">
+      <div role="tablist" aria-label="Team at this event" className="mt-4 flex border-b border-white/10">{([['matches','Matches'],['stats','Stats']] as const).map(([key,label])=><button key={key} role="tab" aria-selected={section===key} onClick={()=>setSection(key)} className={`-mb-px min-h-11 border-b-2 px-5 text-sm font-semibold transition-colors ${section===key?'border-[var(--c-accent)] text-white':'border-transparent text-white/55 hover:text-white'}`}>{label}</button>)}</div>
+      {section==='matches'&&<>
+        <div className="mt-4 max-w-3xl">
         <article className="border border-white/10 bg-[var(--c-surface)]"><SectionTitle eyebrow={(standing??iqRow)?(standing??iqRow).division||'Division':'Registered'} title="Where they stand" />
           <div className="p-5">{iq?(iqRow?<>
             <div className="flex items-end gap-4"><p className="font-mono text-5xl font-bold leading-none text-[var(--c-accent)]">#{iqRow.rank}</p><p className="pb-1 text-[11px] font-semibold uppercase tracking-[.16em] text-white/50">Qualification<br/>rank</p>
@@ -1115,6 +1261,20 @@ function TeamEventView({ event, team, backLabel, goBack, openEvent, openTeam }: 
             {standing.stats&&standing.statsAreProvisional&&<p className="mt-3 text-xs text-white/50">Provisional: few matches played so far, so ratings will still move.</p>}
           </>:<div className="grid grid-cols-2 gap-4"><Metric label="Record" value={`${scored.wins}–${scored.losses}–${scored.ties}`} detail={`${played.length} played`} /><Metric label="Remaining" value={String(upcoming.length)} detail={upcoming.length?'Still to play':matches.length?'Schedule complete':'No schedule posted yet'} /></div>}</div>
         </article>
+        </div>
+        {iq?<>
+      <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
+        <article className="border border-white/10 bg-[var(--c-surface)]"><SectionTitle eyebrow={`${played.length} matches`} title="Played" />{played.length?<ul>{played.map(iq?iqMatchRow:matchRow)}</ul>:<Empty text="No results have been posted for this team yet." />}
+          {check&&!check.agrees&&<p className="border-t border-white/10 px-5 py-4 text-xs leading-5 text-white/50">{check.unexplainedWins>0?`The event credits ${check.officialSummary}. ${check.unexplainedWins===1?'One result does':`${check.unexplainedWins} results do`} not follow the scores, which is what a disqualification looks like - the marks above are from the scores alone.`:`The event credits ${check.officialSummary}, which does not follow the scores above.`}</p>}
+        </article>
+        <article className="border border-white/10 bg-[var(--c-surface)]"><SectionTitle eyebrow={`${upcoming.length} matches`} title="Scheduled" />{upcoming.length?<ul>{upcoming.map(iq?iqMatchRow:matchRow)}</ul>:<Empty text={matches.length?'Nothing left to play.':`No matches are listed for ${number} at this event.`} />}</article>
+      </div>
+        </>:<article className="mt-4 border border-white/10 bg-[var(--c-surface)]"><SectionTitle eyebrow={`${played.length} played · ${upcoming.length} to play`} title="Schedule and results" /><div className="px-5 pb-5"><div className="mt-4"><WatchButton /></div><MatchTable matches={teamTable} rulings={rulings} selections={teamSelection} focus={number} openTeam={(partner:string)=>openTeam({number:partner,seasonId:info?.season?.id,season:info?.season?.name})} empty={`No matches are listed for ${number} at this event yet.`} /></div>
+          {check&&!check.agrees&&<p className="border-t border-white/10 px-5 py-4 text-xs leading-5 text-white/50">{check.unexplainedWins>0?`The event credits ${check.officialSummary}. ${check.unexplainedWins===1?'One result does':`${check.unexplainedWins} results do`} not follow the scores, which is what a disqualification looks like - the marks above are from the scores alone.`:`The event credits ${check.officialSummary}, which does not follow the scores above.`}</p>}
+        </article>}
+      </>}
+      {section==='stats'&&<>
+        <div className="mt-4">
         <article className="border border-white/10 bg-[var(--c-surface)]"><SectionTitle eyebrow={profile?`Against ${profile.teams} teams in ${profile.division||'the division'}`:'Strength profile'} title="Strengths" />
           {profile?<div className="grid items-center gap-x-6 gap-y-3 p-5 md:grid-cols-[1.5fr_1fr]">
             <StrengthHexagon axes={profile.axes} label={`${number} strengths at ${eventName}`} />
@@ -1122,17 +1282,12 @@ function TeamEventView({ event, team, backLabel, goBack, openEvent, openTeam }: 
             <p className="text-xs leading-5 text-white/45 md:col-span-2">{iq?'Each axis places the team among its division on measured results: the edge is the best team there, the dashed ring the middle of the field. Skills is the best driver + autonomous coding total at this event. These are results, not a rating.':`Each axis ranks the team against its division: the edge is the best team there, the dashed ring the middle of the field. AWP is autonomous win points per qualification match, worked out from win points. Skills is the best driver + programming total at this event.${profile.provisional?' Ratings are provisional until each team has played about four matches.':''}`}</p>
           </div>:<Empty text="Strengths appear once the team has been seeded in a division." />}
         </article>
-      </div>
+        </div>
       {points.length>0&&<article className="mt-4 border border-white/10 bg-[var(--c-surface)]"><SectionTitle eyebrow="Running scoring margin" title="Tournament momentum" /><div className="p-5"><div className="h-[220px] w-full"><ResponsiveContainer width="100%" height="100%"><LineChart data={points} margin={{top:10,right:18,left:-12,bottom:4}}><CartesianGrid stroke="rgba(255,255,255,.08)" vertical={false}/><XAxis dataKey="match" stroke="rgba(255,255,255,.3)" tickLine={false} axisLine={false}/><YAxis stroke="rgba(255,255,255,.3)" tickLine={false} axisLine={false}/><Tooltip cursor={{stroke:'rgba(255,255,255,.18)'}} content={({active,payload}:any)=>{const point=payload?.[0]?.payload;if(!active||!point)return null;return <div className="border border-white/15 bg-[var(--c-page)] p-3 text-xs shadow-2xl"><b className="block text-sm">{point.name}</b><span className={`mt-1 block font-mono ${point.margin>=0?'text-emerald-400':'text-rose-400'}`}>{point.margin>=0?'+':''}{point.margin} this match · {point.cumulative>=0?'+':''}{point.cumulative} total</span></div>}}/><Line type="monotone" dataKey="cumulative" stroke="var(--c-accent)" strokeWidth={3} isAnimationActive={!reduceMotion} animationDuration={900} animationEasing="ease-out" dot={(props:any)=><circle key={props.index} cx={props.cx} cy={props.cy} r={4} fill={props.payload.outcome==='won'?'#34d399':props.payload.outcome==='lost'?'#fb7185':'#cbd5e1'} stroke="var(--c-surface)" strokeWidth={2}/>} activeDot={false}/></LineChart></ResponsiveContainer></div><p className="mt-2 text-xs text-white/50">{points.at(-1)!.cumulative===0?`Level on points across ${points.length} matches.`:`${points.at(-1)!.cumulative>0?'+':''}${points.at(-1)!.cumulative} points across ${points.length} matches.`}</p></div></article>}
       {iqPoints.length>0&&<article className="mt-4 border border-white/10 bg-[var(--c-surface)]"><SectionTitle eyebrow="Shared score per match" title="Teamwork scores" /><div className="p-5"><div className="h-[220px] w-full"><ResponsiveContainer width="100%" height="100%"><LineChart data={iqPoints} margin={{top:10,right:18,left:-12,bottom:4}}><CartesianGrid stroke="rgba(255,255,255,.08)" vertical={false}/><XAxis dataKey="match" stroke="rgba(255,255,255,.3)" tickLine={false} axisLine={false}/><YAxis stroke="rgba(255,255,255,.3)" tickLine={false} axisLine={false}/><Tooltip cursor={{stroke:'rgba(255,255,255,.18)'}} content={({active,payload}:any)=>{const point=payload?.[0]?.payload;if(!active||!point)return null;return <div className="border border-white/15 bg-[var(--c-page)] p-3 text-xs shadow-2xl"><b className="block text-sm">{point.name}</b><span className="mt-1 block font-mono">{point.score} points{point.partners.length?` with ${point.partners.join(' + ')}`:''}</span></div>}}/><Line type="monotone" dataKey="score" stroke="var(--c-accent)" strokeWidth={3} isAnimationActive={!reduceMotion} animationDuration={900} animationEasing="ease-out" dot={(props:any)=><circle key={props.index} cx={props.cx} cy={props.cy} r={4} fill="var(--c-accent)" stroke="var(--c-surface)" strokeWidth={2}/>} activeDot={false}/></LineChart></ResponsiveContainer></div><p className="mt-2 text-xs text-white/50">Average {(iqPoints.reduce((sum:number,point:any)=>sum+point.score,0)/iqPoints.length).toFixed(1)} across {iqPoints.length} matches · high {Math.max(...iqPoints.map((point:any)=>point.score))}.</p></div></article>}
-      <div className="mt-4 grid items-start gap-4 lg:grid-cols-2">
-        <article className="border border-white/10 bg-[var(--c-surface)]"><SectionTitle eyebrow={`${played.length} matches`} title="Played" />{played.length?<ul>{played.map(iq?iqMatchRow:matchRow)}</ul>:<Empty text="No results have been posted for this team yet." />}
-          {check&&!check.agrees&&<p className="border-t border-white/10 px-5 py-4 text-xs leading-5 text-white/50">{check.unexplainedWins>0?`The event credits ${check.officialSummary}. ${check.unexplainedWins===1?'One result does':`${check.unexplainedWins} results do`} not follow the scores, which is what a disqualification looks like - the marks above are from the scores alone.`:`The event credits ${check.officialSummary}, which does not follow the scores above.`}</p>}
-        </article>
-        <article className="border border-white/10 bg-[var(--c-surface)]"><SectionTitle eyebrow={`${upcoming.length} matches`} title="Scheduled" />{upcoming.length?<ul>{upcoming.map(iq?iqMatchRow:matchRow)}</ul>:<Empty text={matches.length?'Nothing left to play.':`No matches are listed for ${number} at this event.`} />}</article>
-      </div>
+      </>}
     </div>}
-  </section>;
+  </section></JumperProvider>;
 }
 
 function PageHead({ eyebrow, title, copy }: {eyebrow:string;title:string;copy:string}) { return <div className="max-w-3xl border-b border-white/[.08] pb-6"><p className="text-[11px] italic text-white/45">{eyebrow}</p><h1 className="font-display mt-1.5 text-[2.6rem] leading-[1.05] sm:text-[3.4rem]">{title}</h1><p className="mt-4 max-w-xl text-sm leading-relaxed text-white/45">{copy}</p></div>; }

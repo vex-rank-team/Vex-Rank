@@ -298,3 +298,39 @@ export function strengthProfile(detail, number) {
     provisional: ratings.provisional,
   };
 }
+
+/**
+ * Alliance selection, read back from the elimination matches: each pair of
+ * teams that played eliminations together is an alliance. Its captain is the
+ * partner that ranked higher in qualifications - the one who did the
+ * selecting - and alliances are seeded in the order of their captains' ranks.
+ * Returns [{ seed, captain, pick, captainRank }] in seed order.
+ */
+export function allianceSelections(division) {
+  const rank = new Map((division?.rankings ?? []).map(row => [upper(row.team?.name ?? row.team?.number), Number(row.rank)]));
+  const alliances = new Map();
+  for (const match of division?.matches ?? []) {
+    const round = Number(match.round);
+    if (round < 3 || round > 6) continue;
+    for (const alliance of match.alliances ?? []) {
+      const teams = allianceNumbers(alliance);
+      if (teams.length !== 2 || teams.some(team => !rank.has(upper(team)))) continue;
+      alliances.set(teams.map(upper).sort().join('+'), teams);
+    }
+  }
+  return [...alliances.values()]
+    .map(teams => { const [captain, pick] = [...teams].sort((a, b) => rank.get(upper(a)) - rank.get(upper(b))); return { captain, pick, captainRank: rank.get(upper(captain)) }; })
+    .sort((a, b) => a.captainRank - b.captainRank)
+    .map((alliance, index) => ({ seed: index + 1, ...alliance }));
+}
+
+/** "1st", "2nd", "3rd", "11th" ... */
+export function ordinalSeed(value) {
+  const n = Number(value), teen = n % 100 >= 11 && n % 100 <= 13;
+  return `${n}${teen ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' })[n % 10] ?? 'th'}`;
+}
+
+/** The selection sentence for an alliance: "81208X selects 252H as the 2nd seed alliance". */
+export function selectionSentence(alliance) {
+  return `${alliance.captain} selects ${alliance.pick} as the ${ordinalSeed(alliance.seed)} seed alliance`;
+}

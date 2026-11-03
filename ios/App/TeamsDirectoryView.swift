@@ -29,9 +29,10 @@ struct TeamsDirectoryView: View {
             }
             .pickerStyle(.segmented)
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.top, 8)
+            .padding(.bottom, scope == .favourites ? 10 : 0)
 
-            Divider()
+            if scope == .favourites { Divider().overlay(Color.hairline) }
 
             if scope == .favourites {
                 favouritesList
@@ -128,7 +129,7 @@ struct TeamsDirectoryView: View {
                                            filters: .init(country: country, region: region, grade: grade))
                 VStack(spacing: 0) {
                     filters(showing: results.count)
-                    Divider()
+                    Divider().overlay(Color.hairline)
                     if results.isEmpty, query.trimmingCharacters(in: .whitespaces).isEmpty {
                         // Filters alone emptied it; "No results for ''" says nothing.
                         ContentUnavailableView {
@@ -152,31 +153,36 @@ struct TeamsDirectoryView: View {
     }
 
     private func filters(showing: Int) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
-                menu(country ?? "All countries", "globe", model.countries, "All countries") {
-                    country = $0
-                    // A region from the previous country would match nothing.
-                    region = nil
+        VStack(alignment: .leading, spacing: 2) {
+            // Scrolls rather than squeezes: three chosen names ("United
+            // States", a long region, a grade) do not fit one phone width.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    menu(country ?? "All countries", "globe", country != nil, model.countries, "All countries") {
+                        country = $0
+                        // A region from the previous country would match nothing.
+                        region = nil
+                    }
+                    menu(region ?? "All regions", "map", region != nil, model.regions(in: country), "All regions") { region = $0 }
+                    menu(grade ?? "All levels", "graduationcap", grade != nil, program.grades, "All levels") { grade = $0 }
                 }
-                menu(region ?? "All regions", "map", model.regions(in: country), "All regions") { region = $0 }
-                menu(grade ?? "All levels", "graduationcap", program.grades, "All levels") { grade = $0 }
+                .padding(.horizontal, 16)
             }
-            .font(.caption.weight(.semibold))
+            .padding(.horizontal, -16)
 
             // The count of what is on screen, not just the size of the feed.
             (Text(showing == model.total
                   ? "\(model.total.formatted()) teams"
                   : "\(showing.formatted()) of \(model.total.formatted()) teams")
              + Text(model.updated.map { " · updated \($0.formatted(date: .abbreviated, time: .omitted))" } ?? ""))
-                .font(.caption2).foregroundStyle(.secondary)
-
+                .font(.caption2).foregroundStyle(.subtle)
+                .padding(.bottom, 8)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
     }
 
-    private func menu(_ title: String, _ icon: String, _ options: [String], _ reset: String,
+    private func menu(_ title: String, _ icon: String, _ isActive: Bool, _ options: [String], _ reset: String,
                       select: @escaping (String?) -> Void) -> some View {
         Menu {
             Button(reset) { select(nil) }
@@ -184,10 +190,9 @@ struct TeamsDirectoryView: View {
                 Button(option) { select(option) }
             }
         } label: {
-            Label(title, systemImage: icon).lineLimit(1)
+            FilterPill(title, icon: icon, isActive: isActive)
         }
-        .tint(theme.accent)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .buttonStyle(.plain)
     }
 
     private func list(_ teams: [DirectoryTeam]) -> some View {

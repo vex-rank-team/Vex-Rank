@@ -107,20 +107,30 @@ struct EventsListView: View {
             NavigationLink(value: event.ref) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 8) {
+                    let live = event.status == "In progress"
                     Text(event.day.map { $0.formatted(.dateTime.month(.abbreviated).day()) } ?? event.date)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(theme.accent)
+                        .foregroundStyle(.secondary)
+                    // Only a running event is marked. Every row said
+                    // "Upcoming" in a red date, so the one event worth
+                    // opening now looked like all the others.
+                    if live {
+                        Label("Live", systemImage: "circle.fill")
+                            .font(.caption2.weight(.bold))
+                            .labelStyle(LiveLabelStyle())
+                            .foregroundStyle(theme.accent)
+                    } else if let status = event.status, status != "Upcoming" {
+                        Text(status).font(.caption2).foregroundStyle(.subtle)
+                    }
                     if let tier = event.tier, tier != "Official" {
                         Text(tier.uppercased())
                             .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
                             .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(Capsule().fill(.white.opacity(0.1)))
-                    }
-                    if let status = event.status {
-                        Text(status).font(.caption2).foregroundStyle(.secondary)
+                            .background(Capsule().fill(theme.surfaceRaised))
                     }
                 }
-                Text(event.name).font(.subheadline.weight(.medium)).lineLimit(2)
+                Text(event.name).font(.subheadline.weight(.semibold)).lineLimit(2)
                 HStack(spacing: 6) {
                     if !event.place.isEmpty {
                         Label(event.place, systemImage: "mappin.and.ellipse")
@@ -129,7 +139,7 @@ struct EventsListView: View {
                         Text("· \(teams) teams")
                     }
                 }
-                .font(.caption).foregroundStyle(.secondary)
+                .font(.caption).foregroundStyle(.subtle)
             }
             .padding(.vertical, 4)
             }
@@ -138,6 +148,18 @@ struct EventsListView: View {
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .refreshable { await model.load() }
+    }
+}
+
+/// A small dot before the word, sized to the text rather than the symbol's
+/// default, so "Live" reads as a status and not as an icon button.
+@available(iOS 17.0, *)
+private struct LiveLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 4) {
+            configuration.icon.font(.system(size: 6))
+            configuration.title
+        }
     }
 }
 

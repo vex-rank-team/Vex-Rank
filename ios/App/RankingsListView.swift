@@ -35,11 +35,11 @@ struct RankingsListView: View {
                 let shown = filter.apply(to: teams)
                 VStack(spacing: 0) {
                     controls(teams)
-                    Divider()
                     summary(shown)
                         .padding(.horizontal, 16)
+                        .padding(.top, 4)
                         .padding(.bottom, 12)
-                    Divider()
+                    Divider().overlay(Color.hairline)
                     if shown.isEmpty {
                         ContentUnavailableView("No teams match",
                                                systemImage: "line.3.horizontal.decrease.circle",
@@ -65,9 +65,10 @@ struct RankingsListView: View {
             }
             .pickerStyle(.segmented)
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 menu(title: filter.country ?? "All countries",
                      icon: "globe",
+                     isActive: filter.country != nil,
                      options: RankingFilter.countries(teams),
                      reset: "All countries") { country in
                     filter.country = country
@@ -77,17 +78,18 @@ struct RankingsListView: View {
 
                 menu(title: filter.region ?? "All regions",
                      icon: "map",
+                     isActive: filter.region != nil,
                      options: RankingFilter.regions(teams, country: filter.country),
                      reset: "All regions") { filter.region = $0 }
+                Spacer(minLength: 0)
             }
-            .font(.caption.weight(.semibold))
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.top, 8)
     }
 
     @ViewBuilder
-    private func menu(title: String, icon: String, options: [String], reset: String,
+    private func menu(title: String, icon: String, isActive: Bool, options: [String], reset: String,
                       select: @escaping (String?) -> Void) -> some View {
         Menu {
             Button(reset) { select(nil) }
@@ -95,10 +97,9 @@ struct RankingsListView: View {
                 Button(option) { select(option) }
             }
         } label: {
-            Label(title, systemImage: icon).lineLimit(1)
+            FilterPill(title, icon: icon, isActive: isActive)
         }
-        .tint(theme.accent)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .buttonStyle(.plain)
     }
 
     private func list(_ teams: [TeamRanking]) -> some View {
@@ -116,34 +117,24 @@ struct RankingsListView: View {
     /// much official data is behind the table, and who leads it.
     private func summary(_ teams: [TeamRanking]) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            summaryItem("\(filter.grade == .all ? "Teams" : filter.grade.rawValue) rated",
-                        "\(teams.count)",
-                        filter.country ?? "4+ official matches")
-            summaryItem("Events processed",
-                        model.meta.map { "\($0.eventsProcessed)" } ?? "…",
-                        model.meta.map { "\($0.matchesProcessed) matches" } ?? "")
-            summaryItem("Rating leader",
-                        teams.first.map { "\($0.rating)" } ?? "—",
-                        teams.first?.number ?? "No qualifying teams")
+            Metric("\(filter.grade == .all ? "Teams" : filter.grade.rawValue) rated",
+                   "\(teams.count)",
+                   detail: filter.country ?? "4+ official matches")
+            Metric("Events",
+                   model.meta.map { "\($0.eventsProcessed)" } ?? "…",
+                   detail: model.meta.map { "\($0.matchesProcessed) matches" } ?? "")
+            Metric("Top rating",
+                   teams.first.map { "\($0.rating)" } ?? "—",
+                   detail: teams.first?.number ?? "No qualifying teams")
         }
-    }
-
-    private func summaryItem(_ label: String, _ value: String, _ detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(label).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-            Text(value).font(.system(.title3, design: .rounded, weight: .semibold))
-                .monospacedDigit()
-            Text(detail).font(.caption2).foregroundStyle(.subtle).lineLimit(1)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func row(_ team: TeamRanking) -> some View {
         HStack(spacing: 14) {
             Text("#\(team.rank)")
                 .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                .foregroundStyle(theme.accent)
-                .frame(width: 46, alignment: .leading)
+                .foregroundStyle(.secondary)
+                .frame(width: 44, alignment: .leading)
                 .monospacedDigit()
 
             VStack(alignment: .leading, spacing: 2) {
@@ -162,7 +153,7 @@ struct RankingsListView: View {
                 Text("\(team.rating)")
                     .font(.system(.title3, design: .rounded, weight: .semibold))
                     .monospacedDigit()
-                Text("±\(team.confidence)").font(.caption2).foregroundStyle(.secondary)
+                Text("±\(team.confidence)").font(.caption2).foregroundStyle(.subtle)
                     .monospacedDigit()
             }
         }
@@ -235,30 +226,30 @@ struct IQRankingsView: View {
                     ForEach(Program.viqrc.grades, id: \.self) { Text($0).tag($0) }
                 }
                 .pickerStyle(.segmented)
-                HStack(spacing: 10) {
+                HStack(spacing: 8) {
                     Menu {
                         Picker("Season", selection: $season) {
                             ForEach(Program.iqSeasons, id: \.id) { Text($0.label).tag($0.id) }
                         }
                     } label: {
-                        Label(Program.iqSeasons.first { $0.id == season }?.label ?? "Season", systemImage: "calendar").lineLimit(1)
+                        FilterPill(Program.iqSeasons.first { $0.id == season }?.label ?? "Season",
+                                   icon: "calendar", isActive: season != Program.iqSeasons[0].id)
                     }
-                    .tint(theme.accent)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .buttonStyle(.plain)
                     Menu {
                         Button("All countries") { country = nil }
                         ForEach(model.countries, id: \.self) { name in Button(name) { country = name } }
                     } label: {
-                        Label(country ?? "All countries", systemImage: "globe").lineLimit(1)
+                        FilterPill(country ?? "All countries", icon: "globe", isActive: country != nil)
                     }
-                    .tint(theme.accent)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .buttonStyle(.plain)
+                    Spacer(minLength: 0)
                 }
-                .font(.caption.weight(.semibold))
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            Divider()
+            .padding(.top, 8)
+            .padding(.bottom, 4)
+            Divider().overlay(Color.hairline)
             content
         }
         .animation(.easeOut(duration: 0.35), value: model.isLoaded)
@@ -361,8 +352,8 @@ struct IQRankingsView: View {
         HStack(spacing: 14) {
             Text("#\(position)")
                 .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                .foregroundStyle(theme.accent)
-                .frame(width: 46, alignment: .leading)
+                .foregroundStyle(.secondary)
+                .frame(width: 44, alignment: .leading)
                 .monospacedDigit()
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
@@ -381,7 +372,7 @@ struct IQRankingsView: View {
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(team.rating)").font(.system(.title3, design: .rounded, weight: .semibold)).monospacedDigit()
-                Text("±\(team.confidence)").font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                Text("±\(team.confidence)").font(.caption2).foregroundStyle(.subtle).monospacedDigit()
             }
         }
         .padding(.vertical, 4)
@@ -391,8 +382,8 @@ struct IQRankingsView: View {
         HStack(spacing: 14) {
             Text("#\(position)")
                 .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                .foregroundStyle(theme.accent)
-                .frame(width: 46, alignment: .leading)
+                .foregroundStyle(.secondary)
+                .frame(width: 44, alignment: .leading)
                 .monospacedDigit()
             VStack(alignment: .leading, spacing: 2) {
                 Text(team.number).font(.headline)
@@ -403,7 +394,7 @@ struct IQRankingsView: View {
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 2) {
                 Text("\(team.combinedSkills)").font(.system(.title3, design: .rounded, weight: .semibold)).monospacedDigit()
-                Text("\(team.driverSkills) + \(team.autoSkills)").font(.caption2).foregroundStyle(.secondary).monospacedDigit()
+                Text("\(team.driverSkills) + \(team.autoSkills)").font(.caption2).foregroundStyle(.subtle).monospacedDigit()
             }
         }
         .padding(.vertical, 4)

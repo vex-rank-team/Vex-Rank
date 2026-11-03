@@ -44,3 +44,52 @@ export async function directTeamProfile(path: string): Promise<Response | null> 
     return null;
   }
 }
+
+/**
+ * A running event straight from events.vex: standings and matches the moment
+ * they are posted, rather than a Worker copy up to a minute old.
+ *
+ * Every reader shares one token and its rate limit, so after any failure
+ * (a 429 included) direct reads stop for five minutes and the Worker - which
+ * keeps one shared, minute-fresh copy - answers instead.
+ *
+ * The organizer notes come from the public event page, which a browser cannot
+ * read, so they are taken from the Worker's answer when it arrives within
+ * 1.5 s (`worker`); a poll passes no `worker` and keeps the notes it has.
+ */
+let directEventsPausedUntil = 0;
+// The Worker's answer for each event, kept past the 1.5 s wait so notes that
+// arrive later still reach the page (organizerNotes).
+const workerNotes = new Map<string, Promise<{ organizer?: any } | null>>();
+export async function directEventDetail(id: string, worker?: () => Promise<Response>): Promise<Response | null> {
+  if (!hasDirectToken() || Date.now() < directEventsPausedUntil) return null;
+  const notes = worker ? worker().then(response => response.ok ? response.json() : null).catch(() => null) : null;
+  if (notes) workerNotes.set(id, notes as Promise<{ organizer?: any } | null>);
+  try {
+    const { eventDetailResponse } = await import('./event-detail-build');
+    const response = await eventDetailResponse(id, __VEX_DIRECT_TOKEN__, { organizer: false });
+    if (!response.ok) throw new Error(`direct event ${response.status}`);
+    const data = await response.json() as { organizer?: unknown };
+    if (notes) {
+      const fromWorker = await Promise.race([notes, new Promise(resolve => setTimeout(() => resolve(null), 1500))]) as { organizer?: unknown } | null;
+      if (fromWorker?.organizer) data.organizer = fromWorker.organizer;
+    }
+    return Response.json(data);
+  } catch {
+    directEventsPausedUntil = Date.now() + 5 * 60000;
+    return null;
+  }
+}
+
+/**
+ * An event's organizer notes (webcast, agenda...) when the page's copy came
+ * without them: the Worker answer the direct read started, however late it
+ * lands. Null when there is none.
+ */
+export async function organizerNotes(id: string): Promise<any | null> {
+  const pending = workerNotes.get(id);
+  if (!pending) return null;
+  const body = await pending;
+  const organizer = body?.organizer;
+  return organizer && Object.values(organizer).some(Boolean) ? organizer : null;
+}

@@ -42,37 +42,43 @@ public struct VEXTheme: Identifiable, Sendable, Hashable {
     /// The ink used on the lighter accents.
     private static let ink = Color(hex: 0x0b0d10)
 
+    // Surfaces step up in even increments - page, card, raised - so a card
+    // reads as a card without a border. The old cards sat 3% above the page
+    // and disappeared on most displays. `band` is the raised step in every
+    // theme: it used to carry its own hue (an olive under the red), the one
+    // colour on screen that belonged to no palette.
+
     public static let midnight = VEXTheme(
         id: "midnight", name: "Midnight",
-        page: Color(hex: 0x090b0f), chrome: Color(hex: 0x0d1015),
-        surface: Color(hex: 0x101319), surfaceRaised: Color(hex: 0x151a22),
-        // 4.57:1 on surface. The brand red #ed2b3a measured 4.43:1, just under
-        // the small-text floor, so the shipped value is nudged up.
-        accent: Color(hex: 0xee3240), band: Color(hex: 0x282c20)
+        page: Color(hex: 0x0a0b0e), chrome: Color(hex: 0x0e1014),
+        surface: Color(hex: 0x15171c), surfaceRaised: Color(hex: 0x1d2027),
+        // 4.41:1 on surface, so it is spent on fills, glyphs and large type, not on
+        // small text. White on it 4.07:1 - the brand pairing - for chip labels.
+        accent: Color(hex: 0xee3240), band: Color(hex: 0x1d2027)
     )
 
     public static let ember = VEXTheme(
         id: "ember", name: "Ember",
         page: Color(hex: 0x0d0b09), chrome: Color(hex: 0x12100d),
-        surface: Color(hex: 0x17130f), surfaceRaised: Color(hex: 0x1e1914),
+        surface: Color(hex: 0x1a1612), surfaceRaised: Color(hex: 0x231e18),
         accent: Color(hex: 0xf5a524), onAccent: ink,                // 9.05:1; ink on it 9.53:1
-        band: Color(hex: 0x2c2416)
+        band: Color(hex: 0x231e18)
     )
 
     public static let abyss = VEXTheme(
         id: "abyss", name: "Abyss",
-        page: Color(hex: 0x070a12), chrome: Color(hex: 0x0a0f1a),
-        surface: Color(hex: 0x0e1420), surfaceRaised: Color(hex: 0x141c2c),
+        page: Color(hex: 0x080b12), chrome: Color(hex: 0x0b101a),
+        surface: Color(hex: 0x111724), surfaceRaised: Color(hex: 0x182030),
         accent: Color(hex: 0x38bdf8), onAccent: ink,                // 8.60:1; ink on it 9.08:1
-        band: Color(hex: 0x16283a)
+        band: Color(hex: 0x182030)
     )
 
     public static let moss = VEXTheme(
         id: "moss", name: "Moss",
         page: Color(hex: 0x0a0c09), chrome: Color(hex: 0x0e110c),
-        surface: Color(hex: 0x121711), surfaceRaised: Color(hex: 0x1a2018),
+        surface: Color(hex: 0x151a13), surfaceRaised: Color(hex: 0x1d231a),
         accent: Color(hex: 0xa3e635), onAccent: ink,                // 12.04:1; ink on it 12.90:1
-        band: Color(hex: 0x232d1c)
+        band: Color(hex: 0x1d231a)
     )
 
     public static let all: [VEXTheme] = [.midnight, .ember, .abyss, .moss]
@@ -103,6 +109,25 @@ extension Color {
 @available(iOS 17.0, macOS 14.0, *)
 extension ShapeStyle where Self == Color {
     public static var subtle: Color { Color.white.opacity(0.5) }
+
+    /// Rules between rows and around metrics. One value, where there were six
+    /// (0.08 to 0.22), so every list on every screen ruled the same weight.
+    public static var hairline: Color { Color.white.opacity(0.1) }
+
+    // Meaning, not decoration, and the same in every theme: a win is never
+    // the accent, so a red theme cannot make a win look like a loss.
+    // Tuned together for the dark surfaces rather than taken from the system
+    // set, whose pure red and blue vibrated against them and whose green read
+    // as a different app.
+
+    /// A won match, a rating that rose.
+    public static var win: Color { Color(hex: 0x34d399) }
+    /// A lost match, a rating that fell.
+    public static var loss: Color { Color(hex: 0xfb7185) }
+    /// The red alliance. White labels on it 4.7:1; as large text on a card 3.8:1.
+    public static var allianceRed: Color { Color(hex: 0xd6363c) }
+    /// The blue alliance. White labels on it 4.6:1; as large text on a card 3.9:1.
+    public static var allianceBlue: Color { Color(hex: 0x3f6fe0) }
 }
 
 @available(iOS 17.0, macOS 14.0, *)

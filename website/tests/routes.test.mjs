@@ -67,3 +67,10 @@ test('V5 hashes are unchanged by the program argument', () => {
   }
   assert.equal(routeToHash('team', { number: '31260X' }, null, 'V5RC'), '#/teams/31260X');
 });
+
+test('an event\'s livestream page has its own address', () => {
+  assert.equal(routeToHash('eventLive', null, { id: 64234 }), '#/events/64234/live');
+  assert.deepEqual(hashToRoute('#/events/64234/live'), { view: 'eventLive', eventId: '64234' });
+  assert.deepEqual(hashToRoute('#/iq/events/65767/live'), { view: 'eventLive', eventId: '65767', program: 'VIQRC' });
+  assert.equal(routeToHash('eventLive', null, null), '#/events');
+});

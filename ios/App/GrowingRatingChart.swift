@@ -49,8 +49,7 @@ struct GrowingRatingChart: View {
             // Green for a gain and rose for a loss, as on the web.
             ForEach(samples.filter(\.isEvent)) { sample in
                 PointMark(x: .value("Event", sample.x), y: .value("Rating", sample.rating))
-                    .foregroundStyle(sample.change >= 0 ? Color(.sRGB, red: 0.20, green: 0.83, blue: 0.60)
-                                                        : Color(.sRGB, red: 0.98, green: 0.44, blue: 0.52))
+                    .foregroundStyle(sample.change >= 0 ? Color.win : Color.loss)
                     .symbolSize(52)
             }
         }
@@ -70,7 +69,7 @@ struct GrowingRatingChart: View {
         }
         .chartYAxis {
             AxisMarks { _ in
-                AxisGridLine().foregroundStyle(.white.opacity(0.08))
+                AxisGridLine().foregroundStyle(Color.hairline)
                 AxisValueLabel().font(.caption2)
             }
         }

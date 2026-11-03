@@ -71,7 +71,7 @@ struct MomentumChart: View {
         }
         .chartYAxis {
             AxisMarks { _ in
-                AxisGridLine().foregroundStyle(.white.opacity(0.08))
+                AxisGridLine().foregroundStyle(Color.hairline)
                 AxisValueLabel().font(.caption2)
             }
         }
@@ -79,8 +79,8 @@ struct MomentumChart: View {
 
     private func colour(_ outcome: TeamMatch.Outcome) -> Color {
         switch outcome {
-        case .won: return Color(.sRGB, red: 0.20, green: 0.83, blue: 0.60)
-        case .lost: return Color(.sRGB, red: 0.98, green: 0.44, blue: 0.52)
+        case .won: return .win
+        case .lost: return .loss
         default: return .gray
         }
     }

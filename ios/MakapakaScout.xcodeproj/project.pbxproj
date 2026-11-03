@@ -16,6 +16,7 @@
 		12817E63C5955BAB84C8009A /* RankingsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D98A9B759AC756C6B26F7099 /* RankingsListView.swift */; };
 		F6A2AB0AD89D55A68B447743 /* ServiceBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0239D2AAD61C56128CBCE065 /* ServiceBanner.swift */; };
 		92E1AE59EE8152508D3E69DC /* StatLeadersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B84DBA870C451B2A7FDCABA /* StatLeadersView.swift */; };
+		BBB55CE4FDEC5793A8A58D0B /* StreamJumperView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2E1F2376A325BCD9C9FF6E3 /* StreamJumperView.swift */; };
 		B3710C39F4E55DAC997571F1 /* StrengthHexagon.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE6D0829AAEC5C03B4EFD35E /* StrengthHexagon.swift */; };
 		0CC0625312795AA58193F95E /* TeamEventMatchesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60F90CBA09CC5E3F8B8ECF2B /* TeamEventMatchesView.swift */; };
 		255E646C60DF5E3585A92106 /* TeamProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D47F68F4737F5D8EAD3AA1D9 /* TeamProfileView.swift */; };
@@ -36,6 +37,7 @@
 		D98A9B759AC756C6B26F7099 /* RankingsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "RankingsListView.swift"; path = "App/RankingsListView.swift"; sourceTree = "<group>"; };
 		0239D2AAD61C56128CBCE065 /* ServiceBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "ServiceBanner.swift"; path = "App/ServiceBanner.swift"; sourceTree = "<group>"; };
 		7B84DBA870C451B2A7FDCABA /* StatLeadersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "StatLeadersView.swift"; path = "App/StatLeadersView.swift"; sourceTree = "<group>"; };
+		E2E1F2376A325BCD9C9FF6E3 /* StreamJumperView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "StreamJumperView.swift"; path = "App/StreamJumperView.swift"; sourceTree = "<group>"; };
 		AE6D0829AAEC5C03B4EFD35E /* StrengthHexagon.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "StrengthHexagon.swift"; path = "App/StrengthHexagon.swift"; sourceTree = "<group>"; };
 		60F90CBA09CC5E3F8B8ECF2B /* TeamEventMatchesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TeamEventMatchesView.swift"; path = "App/TeamEventMatchesView.swift"; sourceTree = "<group>"; };
 		D47F68F4737F5D8EAD3AA1D9 /* TeamProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "TeamProfileView.swift"; path = "App/TeamProfileView.swift"; sourceTree = "<group>"; };
@@ -65,6 +67,7 @@
 				D98A9B759AC756C6B26F7099 /* RankingsListView.swift */,
 				0239D2AAD61C56128CBCE065 /* ServiceBanner.swift */,
 				7B84DBA870C451B2A7FDCABA /* StatLeadersView.swift */,
+				E2E1F2376A325BCD9C9FF6E3 /* StreamJumperView.swift */,
 				AE6D0829AAEC5C03B4EFD35E /* StrengthHexagon.swift */,
 				60F90CBA09CC5E3F8B8ECF2B /* TeamEventMatchesView.swift */,
 				D47F68F4737F5D8EAD3AA1D9 /* TeamProfileView.swift */,
@@ -149,6 +152,7 @@
 				12817E63C5955BAB84C8009A ,
 				F6A2AB0AD89D55A68B447743 ,
 				92E1AE59EE8152508D3E69DC ,
+				BBB55CE4FDEC5793A8A58D0B ,
 				B3710C39F4E55DAC997571F1 ,
 				0CC0625312795AA58193F95E ,
 				255E646C60DF5E3585A92106 ,

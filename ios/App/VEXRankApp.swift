@@ -215,8 +215,13 @@ struct VEXRankApp: App {
                     }
                 }
             } label: {
-                Image(systemName: "circle.lefthalf.filled")
+                // Neutral: settings are visited rarely, and an accent icon in
+                // every tab's corner outshouted the content under it.
+                Image(systemName: "slider.horizontal.3")
             }
+            // The toolbar tints its items with the app accent, which wins
+            // over a foreground style on the label.
+            .tint(.primary)
             .accessibilityLabel("Theme and settings")
         }
     }

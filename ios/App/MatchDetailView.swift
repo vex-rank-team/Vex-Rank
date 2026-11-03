@@ -38,9 +38,9 @@ struct MatchDetailView: View {
                 // A final is a series, so the series score leads and the
                 // individual games sit underneath it.
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text("\(series.redWins)").foregroundStyle(.red)
+                    Text("\(series.redWins)").foregroundStyle(Color.allianceRed)
                     Text(":").foregroundStyle(.secondary)
-                    Text("\(series.blueWins)").foregroundStyle(.blue)
+                    Text("\(series.blueWins)").foregroundStyle(Color.allianceBlue)
                 }
                 .font(.system(.largeTitle, design: .monospaced, weight: .bold))
                 Text("Best of \(max(3, series.redWins + series.blueWins)) · \(ref.games.count) played")
@@ -65,11 +65,11 @@ struct MatchDetailView: View {
             }
             .padding(.horizontal, 12).padding(.vertical, 9)
 
-            Divider()
-            alliance(game.red, colour: .red, label: "RED",
+            Divider().overlay(Color.hairline)
+            alliance(game.red, colour: .allianceRed, label: "RED",
                      won: game.winner == "red", decided: game.winner != nil, played: game.isPlayed)
-            Divider()
-            alliance(game.blue, colour: .blue, label: "BLUE",
+            Divider().overlay(Color.hairline)
+            alliance(game.blue, colour: .allianceBlue, label: "BLUE",
                      won: game.winner == "blue", decided: game.winner != nil, played: game.isPlayed)
 
             if !game.isPlayed {
@@ -86,7 +86,7 @@ struct MatchDetailView: View {
             }
         }
         .background(theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func alliance(_ alliance: MatchAlliance?, colour: Color, label: String,
@@ -94,15 +94,11 @@ struct MatchDetailView: View {
         let numbers = alliance?.numbers ?? []
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Text(label)
-                    .font(.system(size: 9, weight: .bold)).tracking(0.8)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 6).padding(.vertical, 3)
-                    .background(colour, in: RoundedRectangle(cornerRadius: 4))
+                AllianceTag(isRed: label == "RED")
                 Spacer()
                 Text(alliance?.score.map(String.init) ?? "—")
                     .font(.system(.title3, design: .monospaced, weight: .bold))
-                    .foregroundStyle(won ? .green : .primary)
+                    .foregroundStyle(won ? Color.win : Color.primary)
             }
 
             // Each number is its own link. Tapping the alliance as a whole would
@@ -130,7 +126,7 @@ struct MatchDetailView: View {
         .padding(.horizontal, 12).padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .opacity(decided && !won ? 0.55 : 1)
-        .background(won ? Color.green.opacity(0.1) : .clear)
+        .background(won ? Color.win.opacity(0.12) : .clear)
     }
 }
 

@@ -74,10 +74,10 @@ struct BracketView: View {
 
     private func card(_ slot: BracketSlot) -> some View {
         VStack(spacing: 0) {
-            side(slot.match.red, colour: .red, letter: "R",
+            side(slot.match.red, colour: .allianceRed, letter: "R",
                  won: slot.match.winner == "red", decided: slot.match.winner != nil)
             Divider()
-            side(slot.match.blue, colour: .blue, letter: "B",
+            side(slot.match.blue, colour: .allianceBlue, letter: "B",
                  won: slot.match.winner == "blue", decided: slot.match.winner != nil)
             if slot.wasReplayed {
                 Text("REPLAYED · \(slot.games.count) GAMES")
@@ -112,7 +112,7 @@ struct BracketView: View {
         // The loser is dimmed rather than the winner merely bolded, so the path
         // through the bracket is readable at a glance.
         .opacity(decided && !won ? 0.42 : 1)
-        .background(won ? Color.green.opacity(0.14) : .clear)
+        .background(won ? Color.win.opacity(0.12) : .clear)
     }
 
     private func finalColumn(_ final: BracketFinal, depth: Int) -> some View {
@@ -128,10 +128,10 @@ struct BracketView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 6)
                     Divider()
-                    finalSide(final.red, wins: final.redWins, colour: .red, letter: "R",
+                    finalSide(final.red, wins: final.redWins, colour: .allianceRed, letter: "R",
                               won: final.winner == "red", decided: final.winner != nil)
                     Divider()
-                    finalSide(final.blue, wins: final.blueWins, colour: .blue, letter: "B",
+                    finalSide(final.blue, wins: final.blueWins, colour: .allianceBlue, letter: "B",
                               won: final.winner == "blue", decided: final.winner != nil)
                 }
                 .background(theme.surfaceRaised)
@@ -157,6 +157,6 @@ struct BracketView: View {
         }
         .padding(.horizontal, 8).padding(.vertical, 8)
         .opacity(decided && !won ? 0.42 : 1)
-        .background(won ? Color.green.opacity(0.14) : .clear)
+        .background(won ? Color.win.opacity(0.12) : .clear)
     }
 }

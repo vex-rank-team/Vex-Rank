@@ -188,3 +188,56 @@ public enum IQScoreSeries {
         }
     }
 }
+
+/// A pair's place in VEX IQ teamwork finals, by the score they shared.
+public struct IQFinalPlace: Identifiable, Sendable, Hashable {
+    public let place: Int
+    public let teams: [String]
+    public let score: Int
+    /// A further match between tied pairs (a first-place tiebreak).
+    public let tiebreak: Int?
+    /// Shares its place with the pair above.
+    public let tied: Bool
+
+    public var id: String { teams.joined(separator: "+") }
+}
+
+extension DivisionMatch {
+    /// A VEX IQ teamwork finals match: round 15, two one-team stations
+    /// sharing one score, like a qualification match.
+    public var isIQFinal: Bool { round == 15 }
+}
+
+extension Division {
+    /// Teamwork finals in play order. Mirrors `iqFinals` in website/lib/viqrc.mjs.
+    public var iqFinals: [DivisionMatch] {
+        (matches ?? []).filter(\.isIQFinal)
+            .sorted { ($0.scheduled ?? "~", $0.matchnum ?? 0) < ($1.scheduled ?? "~", $1.matchnum ?? 0) }
+    }
+
+    /// Pairs placed by the score they shared. Equal scores share a place; a
+    /// tiebreak between them orders them. The event's own placings are final.
+    public var iqFinalPlaces: [IQFinalPlace] {
+        var order: [String] = []
+        var pairs: [String: (teams: [String], scores: [Int])] = [:]
+        for match in iqFinals where match.isPlayed {
+            let pair = match.teamwork
+            guard let score = pair.score else { continue }
+            let key = pair.teams.map { $0.uppercased() }.sorted().joined(separator: "+")
+            if pairs[key] == nil { order.append(key); pairs[key] = (pair.teams, []) }
+            pairs[key]?.scores.append(score)
+        }
+        let ranked = order.compactMap { pairs[$0] }.sorted {
+            ($0.scores[0], $0.scores.count > 1 ? $0.scores[1] : -1) > ($1.scores[0], $1.scores.count > 1 ? $1.scores[1] : -1)
+        }
+        var places: [IQFinalPlace] = []
+        var place = 0
+        for (index, pair) in ranked.enumerated() {
+            let tiebreak = pair.scores.count > 1 ? pair.scores[1] : nil
+            let tied = places.last.map { $0.score == pair.scores[0] && $0.tiebreak == tiebreak } ?? false
+            if !tied { place = index + 1 }
+            places.append(IQFinalPlace(place: place, teams: pair.teams, score: pair.scores[0], tiebreak: tiebreak, tied: tied))
+        }
+        return places
+    }
+}

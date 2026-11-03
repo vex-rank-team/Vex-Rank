@@ -26,16 +26,49 @@ export function teamworkPair(match, division = null) {
   const scores = alliances.map(alliance => Number(alliance.score)).filter(Number.isFinite);
   return {
     id: match.id,
-    name: match.name ?? 'Match',
+    // Finals read as finals wherever a match is listed.
+    name: isIQFinal(match) ? `Finals · ${match.name ?? 'Match'}` : (match.name ?? 'Match'),
     round: Number(match.round),
     field: match.field ?? null,
     scheduled: match.scheduled ?? null,
     division: division?.name ?? null,
     qualification: isQualification(match),
+    finals: isIQFinal(match),
     teams,
     score: played && scores.length ? Math.max(...scores) : null,
     played,
   };
+}
+
+/** A VEX IQ teamwork finals match (round 15). */
+export function isIQFinal(match) {
+  return Number(match?.round) === 15;
+}
+
+/**
+ * A division's teamwork finals: the schedule in play order, and the pairs
+ * placed by the score they shared. Equal scores share a place, as the posted
+ * results do; a further match between tied pairs (a first-place tiebreak)
+ * orders them by its score. Official placings come from the event; this is
+ * the order the posted scores give.
+ */
+export function iqFinals(division) {
+  const matches = (division?.matches ?? []).filter(isIQFinal).map(match => teamworkPair(match, division)).sort(byPlayOrder);
+  const pairs = new Map();
+  for (const match of matches.filter(entry => entry.played && entry.score !== null)) {
+    const key = [...match.teams].map(upper).sort().join('+');
+    const pair = pairs.get(key) ?? { teams: match.teams, scores: [] };
+    pair.scores.push(match.score);
+    pairs.set(key, pair);
+  }
+  const ordered = [...pairs.values()].sort((a, b) => b.scores[0] - a.scores[0] || (b.scores[1] ?? -1) - (a.scores[1] ?? -1));
+  const standings = ordered.map((pair, index) => {
+    const tiedWithPrevious = index > 0 && ordered[index - 1].scores[0] === pair.scores[0] && (ordered[index - 1].scores[1] ?? -1) === (pair.scores[1] ?? -1);
+    return { teams: pair.teams, score: pair.scores[0], tiebreak: pair.scores[1] ?? null, tied: tiedWithPrevious };
+  });
+  let place = 0;
+  standings.forEach((row, index) => { if (!row.tied) place = index + 1; row.place = place; });
+  return { matches, standings, pending: matches.filter(match => !match.played).length };
 }
 
 /** Every teamwork match at an event, in play order. */

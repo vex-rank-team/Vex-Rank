@@ -157,3 +157,20 @@ test('IQ skills fixtures carry the grades and scores the skills route reads', ()
     assert.ok(rows.every(row => row.scores.score === row.scores.programming + row.scores.driver));
   }
 });
+
+test('teamwork finals: placed by shared score, equal scores share a place, a tiebreak orders them', async () => {
+  const { iqFinals } = await import('../lib/viqrc.mjs');
+  const station = (name, score) => ({ score, teams: [{ team: { id: name.length, name } }] });
+  const final = (id, a, b, score, extra = {}) => ({ id, round: 15, instance: 1, matchnum: id, name: `Match #${id}`, scheduled: `2026-11-01T1${id}:00:00Z`, alliances: [station(a, score), station(b, score)], ...extra });
+  const division = { name: 'Middle School', matches: [
+    final(1, '1A', '2A', 180), final(2, '3A', '4A', 200), final(3, '5A', '6A', 180), final(4, '7A', '8A', 0),
+    { id: 99, round: 2, alliances: [station('1A', 50), station('3A', 50)] },
+  ] };
+  const finals = iqFinals(division);
+  assert.equal(finals.matches.length, 4, 'qualification matches are not finals');
+  assert.equal(finals.pending, 1, 'an unplayed final is still to come');
+  assert.deepEqual(finals.standings.map(row => [row.place, row.teams.join('+'), row.score]), [[1, '3A+4A', 200], [2, '1A+2A', 180], [2, '5A+6A', 180]]);
+  // A tiebreak between the tied pairs orders them.
+  division.matches.push(final(5, '5A', '6A', 190), final(6, '1A', '2A', 170));
+  assert.deepEqual(iqFinals(division).standings.map(row => [row.place, row.teams.join('+')]), [[1, '3A+4A'], [2, '5A+6A'], [3, '1A+2A']]);
+});

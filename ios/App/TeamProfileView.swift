@@ -48,17 +48,16 @@ struct TeamProfileView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 26) {
+            VStack(alignment: .leading, spacing: 20) {
                 header
                 // The fade is scoped to the part that actually changes. On
                 // the whole VStack it also covered the signature, and an
                 // implicit animation there replaced the pen's own pending
                 // stroke animations: if the profile arrived mid-write the
                 // writing stopped dead and the number stayed half drawn.
-                VStack(alignment: .leading, spacing: 26) {
+                VStack(alignment: .leading, spacing: 16) {
                     if let profile = model.profile {
                         let season = season ?? profile.seasons.first?.id
-                        officialLink
                         originPortal
                         upcoming
                         seasonPicker(profile)
@@ -78,6 +77,9 @@ struct TeamProfileView: View {
                             competitionHistory(profile, season: season).reveal()
                             awards(profile, season: season).reveal()
                         }
+                        // Last: it leaves the app, and it is the same for
+                        // every team, so it should not sit above their record.
+                        officialLink
                     } else if let message = model.error {
                         VStack(alignment: .leading, spacing: 10) {
                             Text(message).font(.footnote).foregroundStyle(.secondary)
@@ -168,19 +170,19 @@ struct TeamProfileView: View {
             // until the next time the profile is opened.
             .id(numberFont.id)
 
-            if let region = location {
-                Label(region, systemImage: "mappin.and.ellipse")
-                    .font(.title3)
-                    .foregroundStyle(.primary.opacity(0.85))
-            }
-
-            Divider().overlay(Color.white.opacity(0.12))
+            Divider().overlay(Color.hairline)
 
             HStack(alignment: .lastTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text((row?.name ?? model.profile?.team.name ?? "").uppercased()).font(.title3.weight(.medium))
+                    Text(row?.name ?? model.profile?.team.name ?? "").font(.title3.weight(.semibold))
                     if let organization = row?.organization ?? model.profile?.team.organization, !organization.isEmpty {
                         Text(organization).font(.footnote).foregroundStyle(.secondary)
+                    }
+                    if let region = location {
+                        Label(region, systemImage: "mappin.and.ellipse")
+                            .font(.footnote)
+                            .foregroundStyle(.subtle)
+                            .labelStyle(.titleAndIcon)
                     }
                 }
                 Spacer()
@@ -193,7 +195,7 @@ struct TeamProfileView: View {
                                       weight: .bold, design: .rounded))
                         .monospacedDigit()
                     if standing.label == "LIVE VCR", let confidence = row?.confidence {
-                        Text("±\(confidence)").font(.caption2).foregroundStyle(.secondary)
+                        Text("±\(confidence)").font(.caption2).foregroundStyle(.subtle)
                             .monospacedDigit()
                     }
                 }
@@ -234,11 +236,8 @@ struct TeamProfileView: View {
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(theme.accent)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(theme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .vexCard(padding: 14)
+                .contentShape(Rectangle())
             }
             // A Menu tints its whole label with the accent, which turned the
             // heading and the season name red; plain resets that, and the
@@ -293,7 +292,7 @@ struct TeamProfileView: View {
         if let url = OfficialLinks.team(number, program: program.rawValue) {
             Link(destination: url) {
                 HStack(spacing: 10) {
-                    Image(systemName: "safari").foregroundStyle(theme.accent)
+                    Image(systemName: "safari").foregroundStyle(.secondary)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("View \(number) on events.vex.com")
                             .font(.subheadline.weight(.medium))
@@ -302,10 +301,7 @@ struct TeamProfileView: View {
                     Spacer(minLength: 8)
                     Image(systemName: "arrow.up.right").font(.caption).foregroundStyle(.subtle)
                 }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(theme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .vexCard(padding: 14)
             }
             .buttonStyle(.plain)
         }
@@ -328,10 +324,7 @@ struct TeamProfileView: View {
                     Spacer(minLength: 8)
                     Image(systemName: "chevron.right").font(.caption).foregroundStyle(.subtle)
                 }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(theme.surface)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .vexCard(padding: 14)
             }
             .buttonStyle(.plain)
         }
@@ -358,7 +351,7 @@ struct TeamProfileView: View {
                 // Teamwork: who they play with. No colour and no opponent.
                 ForEach(model.upcomingIQ) { match in
                     VStack(alignment: .leading, spacing: 5) {
-                        Divider().overlay(Color.white.opacity(0.18))
+                        Divider().overlay(Color.hairline)
                         HStack(alignment: .firstTextBaseline) {
                             Text(match.name).font(.subheadline.weight(.medium))
                             Spacer(minLength: 8)
@@ -374,11 +367,11 @@ struct TeamProfileView: View {
                     }
                 }
             }
-            .padding(18)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(theme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(theme.accent.opacity(0.35), lineWidth: 1))
+            .vexCard()
+            // The one outlined card: while an event runs, this is the reason
+            // the profile was opened.
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(theme.accent.opacity(0.5), lineWidth: 1))
         } else if let event = model.currentEvent, !model.upcomingMatches.isEmpty {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
@@ -395,7 +388,7 @@ struct TeamProfileView: View {
 
                 ForEach(model.upcomingMatches) { match in
                     VStack(alignment: .leading, spacing: 5) {
-                        Divider().overlay(Color.white.opacity(0.18))
+                        Divider().overlay(Color.hairline)
                         HStack(alignment: .firstTextBaseline) {
                             Text(match.name).font(.subheadline.weight(.medium))
                             Spacer(minLength: 8)
@@ -405,12 +398,7 @@ struct TeamProfileView: View {
                             }
                         }
                         HStack(spacing: 6) {
-                            Text(match.colour == "red" ? "RED" : "BLUE")
-                                .font(.system(size: 9, weight: .bold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 5).padding(.vertical, 2)
-                                .background(match.colour == "red" ? Color.red : Color.blue)
-                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                            AllianceTag(isRed: match.colour == "red")
                             if !match.partners.isEmpty {
                                 Text("with \(match.partners.joined(separator: ", "))")
                                     .font(.caption).foregroundStyle(.secondary)
@@ -421,58 +409,38 @@ struct TeamProfileView: View {
                         }
                         if !match.opponents.isEmpty {
                             Text("vs \(match.opponents.joined(separator: ", "))")
-                                .font(.caption).foregroundStyle(.primary.opacity(0.8))
+                                .font(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }
             }
-            .padding(18)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(theme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .strokeBorder(theme.accent.opacity(0.35), lineWidth: 1)
-            )
+            .vexCard()
+            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(theme.accent.opacity(0.5), lineWidth: 1))
         }
     }
 
     private func seasonBand(_ profile: TeamProfileResponse, season: Int?) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("SEASON SUMMARY").font(.caption2.weight(.semibold)).tracking(2)
-                .foregroundStyle(.white.opacity(0.55))
-            Text("ON\nRECORD").font(.system(size: 34, weight: .semibold)).lineSpacing(-4)
-
-            let columns = [GridItem(.flexible()), GridItem(.flexible())]
-            LazyVGrid(columns: columns, alignment: .leading, spacing: 18) {
+            SectionHeader("Season summary")
+            let columns = [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 16) {
                 let events = profile.events?.filter { season == nil || $0.seasonId == season } ?? []
                 let awards = profile.awards?.filter { season == nil || $0.seasonId == season } ?? []
-                metric("Status", profile.team.active ? "Active" : "Inactive",
-                       season.map { profile.grade(forSeason: $0) } ?? "\(profile.team.currentSeasonEvents) current-season events")
-                metric("Season events", "\(events.count)", "Official competitions")
-                metric("Season awards", "\(awards.count)", "Official award records")
-                metric("Seasons found", "\(profile.team.seasons)", "Complete team history")
+                Metric("Status", profile.team.active ? "Active" : "Inactive",
+                       detail: season.map { profile.grade(forSeason: $0) } ?? "\(profile.team.currentSeasonEvents) current-season events")
+                Metric("Events", "\(events.count)", detail: "Official competitions")
+                Metric("Awards", "\(awards.count)", detail: "Official records")
+                Metric("Seasons", "\(profile.team.seasons)", detail: "Team history")
             }
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.band)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-    }
-
-    private func metric(_ label: String, _ value: String, _ detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Divider().overlay(Color.white.opacity(0.22))
-            Text(label).font(.caption).foregroundStyle(.white.opacity(0.6))
-            Text(value).font(.system(size: 28, weight: .semibold))
-            Text(detail).font(.caption2).foregroundStyle(.white.opacity(0.55))
-        }
+        .vexCard()
     }
 
     /// Where the rating line will go, in the same place and style.
     private var ratingComingSoon: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Tournament rating movement").font(.title3.weight(.semibold))
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader("Rating movement")
             HStack(alignment: .top, spacing: 12) {
                 Rectangle().fill(theme.accent).frame(width: 3)
                 VStack(alignment: .leading, spacing: 4) {
@@ -481,40 +449,26 @@ struct TeamProfileView: View {
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(theme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
+        .vexCard()
     }
 
     private func chart(_ history: [RatingPoint]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Tournament rating movement").font(.title3.weight(.semibold))
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader("Rating movement", detail: "After each tournament")
             GrowingRatingChart(history: history, accent: theme.accent)
-                .frame(height: 220)
+                .frame(height: 200)
             Text("The published ranking uses a rolling sample of the season's most recent events, so this line can run ahead of the rating in the table.")
-                .font(.caption2).foregroundStyle(.secondary)
+                .font(.caption2).foregroundStyle(.subtle)
         }
+        .vexCard()
     }
 }
 
 @available(iOS 17.0, *)
 extension TeamProfileView {
-    private func sectionTitle(_ eyebrow: String, _ title: String) -> some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(eyebrow.uppercased()).font(.caption2.weight(.semibold)).tracking(1.6)
-                .foregroundStyle(.secondary)
-            Text(title).font(.title3.weight(.semibold))
-        }
-    }
-
     private func card<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 14, content: content)
-            .padding(18)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(theme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
+        VStack(alignment: .leading, spacing: 12, content: content).vexCard()
     }
 
     @ViewBuilder
@@ -523,26 +477,14 @@ extension TeamProfileView {
         if !runs.isEmpty {
             let best = SeasonSkills(runs: runs)
             card {
-                sectionTitle("Robot skills", "Season best skills scores")
+                SectionHeader("Skills", detail: "Season best official scores")
                 HStack(alignment: .top, spacing: 14) {
-                    skillMetric("Driver", best.driver, "Highest official driver score")
-                    skillMetric(program.isIQ ? "Coding" : "Programming", best.programming,
-                                program.isIQ ? "Highest official autonomous coding score" : "Highest official autonomous score")
-                    skillMetric("Combined", best.combined, "Best pair at one event")
+                    Metric("Driver", best.driver > 0 ? "\(best.driver)" : "—")
+                    Metric(program.isIQ ? "Coding" : "Auton", best.programming > 0 ? "\(best.programming)" : "—")
+                    Metric("Combined", best.combined > 0 ? "\(best.combined)" : "—", detail: "At one event")
                 }
             }
         }
-    }
-
-    private func skillMetric(_ label: String, _ value: Int, _ detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Divider().overlay(Color.white.opacity(0.18))
-            Text(label).font(.caption).foregroundStyle(.secondary)
-            Text(value > 0 ? "\(value)" : "—")
-                .font(.system(size: 26, weight: .semibold)).monospacedDigit()
-            Text(detail).font(.caption2).foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -552,10 +494,10 @@ extension TeamProfileView {
             .sorted { ($0.day ?? .distantPast) > ($1.day ?? .distantPast) }
         if !events.isEmpty {
             card {
-                sectionTitle("Competition history", "Events and qualification")
+                SectionHeader("Events", detail: "Results and qualification rank")
                 ForEach(events) { event in
                     VStack(alignment: .leading, spacing: 5) {
-                        Divider().overlay(Color.white.opacity(0.18))
+                        Divider().overlay(Color.hairline)
                         NavigationLink(value: event.ref.focused(on: number)) {
                             HStack(alignment: .firstTextBaseline) {
                                 Text(event.name).font(.subheadline.weight(.medium))
@@ -573,13 +515,18 @@ extension TeamProfileView {
                             Text(place).font(.caption).foregroundStyle(.secondary)
                         }
                         if let result = event.eliminationResult {
-                            Text(result).font(.caption.weight(.semibold)).foregroundStyle(theme.accent)
+                            Label {
+                                Text(result).foregroundStyle(.primary)
+                            } icon: {
+                                Image(systemName: "trophy.fill").foregroundStyle(theme.accent)
+                            }
+                            .font(.caption.weight(.semibold))
                         }
                         ForEach(standings(profile, eventID: event.id), id: \.self) { standing in
                             Text(program.isIQ
                                  ? "Qualification #\(standing.rank) · high \(standing.highScore.map(String.init) ?? "\u{2014}")"
                                  : "Qualification #\(standing.rank) · \(standing.record)")
-                                .font(.caption).foregroundStyle(.primary.opacity(0.8))
+                                .font(.caption).foregroundStyle(.secondary)
                         }
                     }
                 }
@@ -596,10 +543,10 @@ extension TeamProfileView {
         let awards = (profile.awards ?? []).filter { season == nil || $0.seasonId == season }
         if !awards.isEmpty {
             card {
-                sectionTitle("Official recognition", "Awards")
+                SectionHeader("Awards")
                 ForEach(Array(awards.enumerated()), id: \.offset) { _, award in
                     VStack(alignment: .leading, spacing: 4) {
-                        Divider().overlay(Color.white.opacity(0.18))
+                        Divider().overlay(Color.hairline)
                         Text(award.title ?? "Award").font(.subheadline.weight(.medium))
                         if let event = award.event {
                             Text(event).font(.caption).foregroundStyle(.secondary)

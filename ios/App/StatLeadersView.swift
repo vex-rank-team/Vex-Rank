@@ -35,7 +35,7 @@ struct StatLeadersView: View {
                 country = nil
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
                 Text(category.detail)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -45,7 +45,7 @@ struct StatLeadersView: View {
             .padding(.horizontal, 16)
         }
         .padding(.top, 4)
-        .padding(.bottom, 12)
+        .padding(.bottom, 8)
     }
 
     @ViewBuilder
@@ -58,11 +58,9 @@ struct StatLeadersView: View {
                     Button(name) { country = name }
                 }
             } label: {
-                Label(country ?? "All regions", systemImage: "globe")
-                    .font(.caption.weight(.semibold))
-                    .lineLimit(1)
+                FilterPill(country ?? "All regions", icon: "globe", isActive: country != nil)
             }
-            .tint(theme.accent)
+            .buttonStyle(.plain)
         }
     }
 
@@ -115,8 +113,8 @@ struct StatLeadersView: View {
         HStack(spacing: 14) {
             Text("#\(index + 1)")
                 .font(.system(.subheadline, design: .rounded, weight: .semibold))
-                .foregroundStyle(theme.accent)
-                .frame(width: 46, alignment: .leading)
+                .foregroundStyle(.secondary)
+                .frame(width: 44, alignment: .leading)
                 .monospacedDigit()
 
             VStack(alignment: .leading, spacing: 2) {
