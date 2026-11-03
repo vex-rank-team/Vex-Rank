@@ -29,7 +29,8 @@ final class JumperModel {
     private(set) var timelines: [String: StreamTimeline] = [:]
     private var matches: [Int: DivisionMatch] = [:]
 
-    /// The viewer's own unsaved corrections, links and nudges, per event.
+    /// The viewer's own unsaved corrections and links, per event. (Per-viewer
+    /// offsets saved by earlier versions are read but no longer applied.)
     /// (Single "syncs" from before timing was automatic are no longer read.)
     private struct LocalJumper: Codable {
         var anchors: [String: [EventStream.Anchor]] = [:]
@@ -88,7 +89,7 @@ final class JumperModel {
                 copy.sync = nil
                 return copy
             }
-        let result = StreamJumper.jumps(divisions: detail?.divisions ?? [], streams: streams, nudges: local.nudges,
+        let result = StreamJumper.jumps(divisions: detail?.divisions ?? [], streams: streams,
                                         eventStart: detail?.event.start, eventEnd: detail?.event.end)
         jumps = result.jumps; times = result.times; timelines = result.timelines
     }
@@ -97,7 +98,6 @@ final class JumperModel {
         if let data = try? JSONEncoder().encode(local) { UserDefaults.standard.set(data, forKey: defaultsKey) }
     }
 
-    func nudge(for videoId: String) -> Double { local.nudges[videoId] ?? 0 }
     func timeline(for videoId: String) -> StreamTimeline? { timelines[videoId] }
     func jump(for matchId: Int) -> MatchJump? { jumps[matchId] }
 
@@ -114,11 +114,10 @@ final class JumperModel {
 
     func show(_ videoId: String) { current = (videoId, -1, nil, UUID()) }
 
-    /// Moves this viewer's placement of the stream by `delta` seconds, and the video with it.
-    func nudge(_ delta: Double) {
+    /// Skips back or forward through the video. Only the video moves: every
+    /// match stays where it is placed.
+    func skip(_ delta: Double) {
         guard let videoId = current?.videoId else { return }
-        local.nudges[videoId, default: 0] += delta
-        persist(); rebuild()
         current = (videoId, Int(max(0, position + delta)), current?.match, UUID())
     }
 
@@ -139,21 +138,13 @@ final class JumperModel {
         await correct(matchId: matchId, seconds: position.rounded())
     }
 
-    /// The nudged position of the last match picked, saved for everyone.
-    @MainActor
-    func saveNudge() async {
-        guard let id = lastMatchId, let target = jumps[id] else { return }
-        await correct(matchId: id, seconds: Double(target.seconds))
-    }
-
     /// A correction, from its match on: saved for everyone, and kept on this
-    /// device until the save is confirmed. It folds in this stream's nudge.
+    /// device until the save is confirmed.
     @MainActor
     func correct(matchId: Int, seconds: Double) async {
         guard let videoId = current?.videoId else { return }
         local.anchors[videoId, default: []].removeAll { $0.matchId == matchId }
         local.anchors[videoId]!.append(.init(matchId: matchId, seconds: seconds))
-        local.nudges[videoId] = 0
         persist(); rebuild()
         if let response = try? await VEXRankAPI.shared.postStream(["event": eventId, "videoId": videoId, "anchor": ["matchId": matchId, "seconds": seconds]]) {
             shared = response.streams
@@ -169,7 +160,7 @@ final class JumperModel {
     @MainActor
     func reset() async {
         guard let videoId = current?.videoId else { return }
-        local.anchors[videoId] = []; local.nudges[videoId] = 0; local.cleared[videoId] = true
+        local.anchors[videoId] = []; local.cleared[videoId] = true
         persist(); rebuild()
         if let response = try? await VEXRankAPI.shared.postStream(["event": eventId, "videoId": videoId, "clearAnchors": true]) {
             shared = response.streams; local.cleared[videoId] = nil
@@ -211,7 +202,7 @@ struct JumperPanel: View {
     @State private var addingLink = false
     @State private var link = ""
 
-    private static let nudges: [Double] = [-60, -30, -10, -5, 5, 10, 30, 60]
+    private static let skips: [Double] = [-60, -30, -10, -5, 5, 10, 30, 60]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -243,7 +234,7 @@ struct JumperPanel: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
                             ForEach(Array(jumper.streams.enumerated()), id: \.element.id) { index, stream in
-                                Button("Stream \(index + 1)") { jumper.show(stream.videoId) }
+                                Button(StreamJumper.label(for: stream, index: index, in: jumper.streams)) { jumper.show(stream.videoId) }
                                     .buttonStyle(.bordered)
                                     .tint(stream.videoId == current.videoId ? theme.accent : .secondary)
                                     .font(.caption2.weight(.semibold))
@@ -253,9 +244,9 @@ struct JumperPanel: View {
                 }
 
                 HStack(spacing: 4) {
-                    ForEach(Self.nudges, id: \.self) { delta in
+                    ForEach(Self.skips, id: \.self) { delta in
                         Button {
-                            jumper.nudge(delta)
+                            jumper.skip(delta)
                         } label: {
                             Text("\(delta < 0 ? "−" : "+")\(abs(delta) >= 60 ? "\(Int(abs(delta) / 60))m" : "\(Int(abs(delta)))s")")
                                 .font(.system(size: 11, design: .monospaced))
@@ -263,11 +254,11 @@ struct JumperPanel: View {
                                 .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 5))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Skip \(delta < 0 ? "back" : "forward") \(Int(abs(delta))) seconds")
                     }
                 }
 
                 let timeline = jumper.timeline(for: current.videoId)
-                let nudge = jumper.nudge(for: current.videoId)
                 Text(timeline?.automatic == true ? "Synced automatically\(timeline!.corrections > 0 ? " · \(timeline!.corrections) correction\(timeline!.corrections == 1 ? "" : "s")" : "")"
                      : timeline != nil ? "Synced by viewers" : "Not synced yet: play to the start of any match, pick it below and tap Starts at. Every match then gets a jump, for everyone.")
                     .font(.caption2).foregroundStyle(.secondary)
@@ -278,12 +269,6 @@ struct JumperPanel: View {
                          ? "The stream was down for \(minutes) min before the match at \(when) (placed by viewers' corrections). YouTube's video leaves that out, and the jumps allow for it."
                          : "The stream was down for \(minutes) min, which YouTube's video leaves out. When is not known: it is taken to be the pause before the match at \(when). If a match lands about \(minutes) min off, mark where it really starts - that places the dropout for every match.")
                         .font(.caption2).foregroundStyle(.orange)
-                }
-                if nudge != 0, let name = current.match {
-                    Button("Save this timing for everyone, from \(name) on") { Task { await jumper.saveNudge() } }
-                        .font(.caption.weight(.semibold))
-                        .buttonStyle(.bordered)
-                        .tint(theme.accent)
                 }
 
                 HStack(spacing: 8) {

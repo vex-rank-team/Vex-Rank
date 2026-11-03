@@ -133,6 +133,29 @@ test('streams per division (by title) and per day are told apart', () => {
   assert.equal(d.jumpFor(2).videoId, 'pm');
 });
 
+test('a two-day event: each day\'s matches on that day\'s stream, with day 1\'s dropout kept to day 1', () => {
+  const day1 = (clock) => `2026-09-18T${clock}-04:00`, day2 = (clock) => `2026-09-19T${clock}-04:00`;
+  const rows = [
+    { ...match(1, null, null), scheduled: day1('10:00:00'), started: day1('10:05:00') },
+    { ...match(2, null, null), scheduled: day1('16:00:00'), started: day1('16:30:00') },
+    { ...match(3, null, null), scheduled: day2('09:30:00'), started: day2('09:40:00') },
+    { ...match(4, null, null), scheduled: day2('17:00:00'), started: day2('17:20:00') },
+  ];
+  const streams = [
+    { videoId: 'day1', title: 'Speedway - Day 1', startTime: day1('10:00:40'), endTime: day1('17:41:34'), duration: 27660 },
+    { videoId: 'day2', title: 'Speedway - Day 2', startTime: day2('09:30:00'), endTime: day2('18:10:00'), duration: 31200 },
+  ];
+  const j = buildJumper({ divisions: event(rows), streams, eventStart: '2026-09-18T00:00:00-04:00', eventEnd: '2026-09-20T00:00:00-04:00' });
+  assert.equal(j.jumpFor(2).videoId, 'day1');
+  assert.deepEqual([j.jumpFor(3).videoId, j.jumpFor(3).seconds], ['day2', 600]);
+  assert.deepEqual([j.jumpFor(4).videoId, j.jumpFor(4).seconds], ['day2', 28200]);
+  // Day 1 lost 54 s; day 2's matches do not count toward placing it.
+  assert.ok(j.timelineOf('day1').gaps.every(gap => gap.at <= Date.parse(day1('17:41:34'))));
+  // With only day 1 known, day 2's matches have no jump - not one past its end.
+  const only = buildJumper({ divisions: event(rows), streams: [streams[0]], eventStart: '2026-09-18T00:00:00-04:00', eventEnd: '2026-09-20T00:00:00-04:00' });
+  assert.equal(only.jumpFor(3), null);
+});
+
 test('video positions read as clock times', () => {
   assert.equal(videoTime(3725), '1:02:05');
   assert.equal(videoTime(65), '1:05');

@@ -3,11 +3,13 @@
 //   - each stream's YouTube facts: when the broadcast went live and ended, how
 //     long the saved video is (the difference is time the stream was down),
 //     and its title (which can name a division);
-//   - broadcasts found on the YouTube channels an event's webcast notes link;
+//   - broadcasts found on the YouTube channels an event's webcast notes link,
+//     and on the channels of the videos it lists - organizers post day 1's
+//     link and not day 2's (Speedway 2026), and the channel has both;
 //   - streams viewers added, and their corrections ("this match starts
 //     here"), which apply from their match on.
 //
-//   GET  /api/streams?event=64234[&videos=id,id][&channels=@x,UC…&from=ISO&to=ISO]
+//   GET  /api/streams?event=64234[&videos=id,id][&channels=@x,UC…][&from=ISO&to=ISO]
 //   POST /api/streams  {event, url}                                  add a YouTube link
 //   POST /api/streams  {event, videoId, anchor:{matchId, seconds}}   a correction
 //   POST /api/streams  {event, videoId, clearAnchors:true}           back to automatic
@@ -15,7 +17,7 @@ import { youtubeId } from '../lib/stream-jumper.mjs';
 
 type Anchor = { matchId: number; seconds: number };
 type Stream = {
-  videoId: string; url?: string; divisionId?: number | null; title?: string; channel?: string;
+  videoId: string; url?: string; divisionId?: number | null; title?: string; channel?: string; channelId?: string;
   startTime?: string | null; endTime?: string | null; duration?: number | null;
   anchors?: Anchor[]; sync?: Anchor | null; checkedAt?: number; notLive?: boolean; listed?: boolean; addedAt?: string;
 };
@@ -55,7 +57,7 @@ const CHANNEL_RECHECK = 10 * 60000;
 const VIDEOS_PER_REQUEST = 4;
 const CHANNELS_PER_REQUEST = 2;
 const DAILY_CALLS = 5000;
-type Facts = { live: boolean; startTime?: string; endTime?: string; duration?: number; title?: string; scheduled?: string };
+type Facts = { live: boolean; startTime?: string; endTime?: string; duration?: number; title?: string; scheduled?: string; channelId?: string };
 
 async function spend(env: StreamEnv): Promise<boolean> {
   // YouTube's quota day runs on Pacific time; UTC dates are close enough for a ceiling at half.
@@ -96,7 +98,7 @@ async function videoFacts(env: StreamEnv, ids: string[]): Promise<Record<string,
     const live = item.liveStreamingDetails;
     found[item.id] = {
       live: Boolean(live), startTime: live?.actualStartTime, endTime: live?.actualEndTime, scheduled: live?.scheduledStartTime,
-      duration: live?.actualEndTime ? isoSeconds(item.contentDetails?.duration) : undefined, title: item.snippet?.title,
+      duration: live?.actualEndTime ? isoSeconds(item.contentDetails?.duration) : undefined, title: item.snippet?.title, channelId: item.snippet?.channelId,
     };
   }
   return found;
@@ -109,10 +111,20 @@ function apply(stream: Stream, facts: Facts, now: number) {
   if (facts.endTime) stream.endTime = facts.endTime;
   if (facts.duration) stream.duration = facts.duration;
   if (facts.title) stream.title = facts.title;
+  if (facts.channelId) stream.channelId = facts.channelId;
+}
+
+// Words that say which event a broadcast is of - not the ones every VEX stream shares.
+const COMMON = new Set(['vex', 'robotics', 'competition', 'live', 'stream', 'livestream', 'day', 'event', 'events', 'tournament', 'field', 'match', 'matches', 'presented', 'the', 'and', 'for', 'with', 'v5rc', 'viqrc', 'override', 'level', 'push', 'back', 'high', 'school', 'middle', 'part', 'session', 'qualifier', 'signature']);
+const words = (text?: string) => new Set((text ?? '').toLowerCase().normalize('NFKD').split(/[^a-z0-9]+/).filter(word => word.length >= 4 && !COMMON.has(word) && !/^\d+$/.test(word)));
+/** A broadcast found on a listed video's channel belongs to the event if its title shares a telling word with the event's streams. */
+function sameEvent(title: string | undefined, known: Stream[]) {
+  const mine = words(title);
+  return known.some(stream => [...words(stream.title)].some(word => mine.has(word)));
 }
 
 // Whether YouTube could still tell us something new about a stream.
-const unsettled = (stream: Stream) => !stream.notLive && (!stream.startTime || !stream.endTime || !stream.duration);
+const unsettled = (stream: Stream) => !stream.notLive && (!stream.startTime || !stream.endTime || !stream.duration || !stream.channelId);
 
 /**
  * Broadcasts on a channel around the event: the channel's uploads (live
@@ -120,6 +132,8 @@ const unsettled = (stream: Stream) => !stream.notLive && (!stream.startTime || !
  * half a day before the event and a day and a half after it.
  */
 async function channelBroadcasts(env: StreamEnv, ref: string, state: ChannelState, from: number, to: number): Promise<{ state: ChannelState; videos: Record<string, Facts> } | null> {
+  // A channel id gives its uploads playlist directly: "UC…" → "UU…".
+  if (!state.uploads && ref.startsWith('UC')) state = { ...state, id: ref, uploads: `UU${ref.slice(2)}` };
   if (!state.uploads) {
     const lookup: Record<string, string> = ref.startsWith('UC') ? { id: ref } : ref.startsWith('user:') ? { forUsername: ref.slice(5) } : { forHandle: ref };
     const body = await youtube(env, 'channels', { part: 'contentDetails', ...lookup });
@@ -129,11 +143,29 @@ async function channelBroadcasts(env: StreamEnv, ref: string, state: ChannelStat
     state = { ...state, id: channel.id, uploads: channel.contentDetails?.relatedPlaylists?.uploads };
     if (!state.uploads) return { state: { ...state, missing: true, checkedAt: Date.now() }, videos: {} };
   }
-  const items = await youtube(env, 'playlistItems', { part: 'contentDetails', playlistId: state.uploads!, maxResults: '50' });
-  if (!items) return null;
-  const ids = (items.items ?? []).map((item: any) => item.contentDetails?.videoId).filter((id: string) => VIDEO_ID.test(id));
-  const facts = await videoFacts(env, ids);
-  if (!facts) return null;
+  // Newest first: page back (at most four pages, a unit each) until past the
+  // event, so an event weeks ago on a busy channel is still reached.
+  const ids: string[] = [];
+  let page: string | undefined;
+  for (let pages = 0; pages < 4; pages++) {
+    const items = await youtube(env, 'playlistItems', { part: 'contentDetails', playlistId: state.uploads!, maxResults: '50', ...(page ? { pageToken: page } : {}) });
+    if (!items) return null;
+    let older = false;
+    for (const item of items.items ?? []) {
+      const published = Date.parse(item.contentDetails?.videoPublishedAt ?? '');
+      if (Number.isFinite(published) && published < from - 14 * 86400000) { older = true; continue; }
+      if (Number.isFinite(published) && published > to + 14 * 86400000) continue;
+      if (VIDEO_ID.test(item.contentDetails?.videoId ?? '')) ids.push(item.contentDetails.videoId);
+    }
+    page = items.nextPageToken;
+    if (older || !page) break;
+  }
+  const facts: Record<string, Facts> = {};
+  for (let i = 0; i < ids.length; i += 50) {
+    const batch = await videoFacts(env, ids.slice(i, i + 50));
+    if (!batch) return null;
+    Object.assign(facts, batch);
+  }
   const videos = Object.fromEntries(Object.entries(facts).filter(([, entry]) => {
     const when = Date.parse(entry.startTime ?? entry.scheduled ?? '');
     return entry.live && Number.isFinite(when) && when >= from - 12 * 3600000 && when <= to + 36 * 3600000;
@@ -152,25 +184,6 @@ export async function streamsRoute(request: Request, env: StreamEnv): Promise<Re
     const now = Date.now();
     let changed = false;
 
-    // Broadcasts on the channels the webcast notes link, around the event's days.
-    const from = Date.parse(url.searchParams.get('from') ?? ''), to = Date.parse(url.searchParams.get('to') ?? '');
-    const channels = (url.searchParams.get('channels') ?? '').split(',').filter(ref => CHANNEL.test(ref)).slice(0, 4);
-    if (channels.length && Number.isFinite(from) && Number.isFinite(to)) {
-      // Around the event, look again now and then; long after it, once is enough.
-      const settled = now > to + 2 * 86400000;
-      const due = channels.filter(ref => { const state = row.channels![ref]; return !state || (!state.missing && !settled && now - (state.checkedAt ?? 0) > CHANNEL_RECHECK); }).slice(0, CHANNELS_PER_REQUEST);
-      for (const ref of due) {
-        const result = await channelBroadcasts(env, ref, row.channels![ref] ?? {}, from, to);
-        if (!result) break;
-        row.channels![ref] = result.state; changed = true;
-        for (const [videoId, facts] of Object.entries(result.videos)) {
-          let stream = known.get(videoId);
-          if (!stream) { if (streams.length >= MAX_STREAMS * 2) break; stream = { videoId, channel: ref, listed: true }; streams.push(stream); known.set(videoId, stream); }
-          apply(stream, facts, now);
-        }
-      }
-    }
-
     // Videos the event lists, and any whose facts could still change.
     const listed = (url.searchParams.get('videos') ?? '').split(',').filter(id => VIDEO_ID.test(id));
     const due = [...new Set([...known.keys(), ...listed])]
@@ -186,6 +199,32 @@ export async function streamsRoute(request: Request, env: StreamEnv): Promise<Re
       }
       changed = true;
     }
+    // Broadcasts on the channels the webcast notes link, and on the listed
+    // videos' channels, around the event's days.
+    const from = Date.parse(url.searchParams.get('from') ?? ''), to = Date.parse(url.searchParams.get('to') ?? '');
+    const linked = (url.searchParams.get('channels') ?? '').split(',').filter(ref => CHANNEL.test(ref)).slice(0, 4);
+    // The channels of the videos the event lists: where its other days' broadcasts are.
+    const listedStreams = streams.filter(stream => !stream.channel && !stream.notLive && stream.startTime);
+    const ofVideos = [...new Set(listedStreams.map(stream => stream.channelId).filter((id): id is string => Boolean(id && CHANNEL.test(id))))].filter(id => !linked.includes(id)).slice(0, 2);
+    const channels = [...linked, ...ofVideos];
+    if (channels.length && Number.isFinite(from) && Number.isFinite(to)) {
+      // Around the event, look again now and then; long after it, once is enough.
+      const settled = now > to + 2 * 86400000;
+      const due = channels.filter(ref => { const state = row.channels![ref]; return !state || (!state.missing && !settled && now - (state.checkedAt ?? 0) > CHANNEL_RECHECK); }).slice(0, CHANNELS_PER_REQUEST);
+      for (const ref of due) {
+        const result = await channelBroadcasts(env, ref, row.channels![ref] ?? {}, from, to);
+        if (!result) break;
+        row.channels![ref] = result.state; changed = true;
+        for (const [videoId, facts] of Object.entries(result.videos)) {
+          let stream = known.get(videoId);
+          // From a listed video's channel (not one the notes link), only broadcasts titled like the event's.
+          if (!stream && !linked.includes(ref) && !sameEvent(facts.title, listedStreams)) continue;
+          if (!stream) { if (streams.length >= MAX_STREAMS * 2) break; stream = { videoId, channel: ref, listed: true }; streams.push(stream); known.set(videoId, stream); }
+          apply(stream, facts, now);
+        }
+      }
+    }
+
     if (changed) await save(env, event, row).catch(() => {});
     return json({ event, streams });
   }

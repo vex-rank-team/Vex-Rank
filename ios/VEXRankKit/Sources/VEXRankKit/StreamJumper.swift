@@ -296,6 +296,17 @@ public enum StreamJumper {
         return (jumps, times, Dictionary(timed.map { ($0.stream.videoId, $0.timeline) }, uniquingKeysWith: { first, _ in first }))
     }
 
+    /// "Day 2" when the title says so, else the day it went live, else "Stream 2".
+    public static func label(for stream: EventStream, index: Int, in all: [EventStream]) -> String {
+        if let title = stream.title, let range = title.range(of: #"(?i)\bday\s*(\d+)\b"#, options: .regularExpression),
+           let number = title[range].split(whereSeparator: { !$0.isNumber }).last {
+            return "Day \(number)"
+        }
+        let days = Set(all.compactMap { time($0.startTime).map { Calendar.current.startOfDay(for: $0) } })
+        if days.count > 1, let start = time(stream.startTime) { return start.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()) }
+        return "Stream \(index + 1)"
+    }
+
     /// "1:02:03" / "4:05" for a video position.
     public static func videoTime(_ seconds: Double) -> String {
         let s = max(0, Int(seconds.rounded())), h = s / 3600, m = s % 3600 / 60, r = s % 60

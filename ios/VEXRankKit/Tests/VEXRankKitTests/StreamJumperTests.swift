@@ -129,4 +129,21 @@ final class StreamJumperTests: XCTestCase {
         XCTAssertEqual(told.jumps[500]?.seconds, (1000 - 540) * 60 - 14 * 60)
         XCTAssertEqual(told.timelines["v1"]?.dropouts.first?.confirmed, true)
     }
+
+    func testTwoDayEventUsesEachDaysStream() throws {
+        func row(_ id: Int, _ started: String) -> [String: Any] {
+            ["id": id, "name": "Q\(id)", "round": 2, "started": started, "scheduled": started, "alliances": [["color": "red", "score": 10], ["color": "blue", "score": 20]]]
+        }
+        let d = try divisions([row(1, "2026-09-18T10:05:00-04:00"), row(2, "2026-09-18T16:30:00-04:00"), row(3, "2026-09-19T09:40:00-04:00"), row(4, "2026-09-19T17:20:00-04:00")])
+        let day1 = EventStream(videoId: "day1", title: "Speedway - Day 1", startTime: "2026-09-18T10:00:40-04:00", endTime: "2026-09-18T17:41:34-04:00", duration: 27660)
+        let day2 = EventStream(videoId: "day2", title: "Speedway - Day 2", startTime: "2026-09-19T09:30:00-04:00", endTime: "2026-09-19T18:10:00-04:00", duration: 31200)
+        let both = StreamJumper.jumps(divisions: d, streams: [day1, day2], eventStart: "2026-09-18T00:00:00-04:00", eventEnd: "2026-09-20T00:00:00-04:00").jumps
+        XCTAssertEqual(both[2]?.videoId, "day1")
+        XCTAssertEqual(both[3], MatchJump(videoId: "day2", seconds: 600))
+        XCTAssertEqual(both[4], MatchJump(videoId: "day2", seconds: 28200))
+        let only = StreamJumper.jumps(divisions: d, streams: [day1], eventStart: "2026-09-18T00:00:00-04:00", eventEnd: "2026-09-20T00:00:00-04:00").jumps
+        XCTAssertNil(only[3], "with only day 1 known, no jump past its end")
+        XCTAssertEqual(StreamJumper.label(for: day2, index: 1, in: [day1, day2]), "Day 2")
+        XCTAssertEqual(StreamJumper.label(for: EventStream(videoId: "x"), index: 0, in: []), "Stream 1")
+    }
 }

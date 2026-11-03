@@ -227,9 +227,10 @@ public actor VEXRankAPI {
     public func streams(event: Int, videos: [String], channels: [String] = [], from: String? = nil, to: String? = nil) async throws -> SharedStreamsResponse {
         var items = [URLQueryItem(name: "event", value: String(event))]
         if !videos.isEmpty { items.append(URLQueryItem(name: "videos", value: videos.joined(separator: ","))) }
-        if !channels.isEmpty, let from {
-            items += [URLQueryItem(name: "channels", value: channels.joined(separator: ",")), URLQueryItem(name: "from", value: from), URLQueryItem(name: "to", value: to ?? from)]
-        }
+        if !channels.isEmpty { items.append(URLQueryItem(name: "channels", value: channels.joined(separator: ","))) }
+        // The event's days: where the Worker looks for broadcasts on linked channels,
+        // and for the other days' streams on the listed videos' channels.
+        if let from { items += [URLQueryItem(name: "from", value: from), URLQueryItem(name: "to", value: to ?? from)] }
         var components = URLComponents()
         components.queryItems = items
         return try await get("/api/streams?\(components.percentEncodedQuery ?? "")", attempts: 1, fresh: true)
