@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Search } from 'lucide-react';
 import { PROGRAMS } from '@/lib/programs.mjs';
 import { siteFetch } from '@/lib/client-fetch';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { FilterInput, FilterSelect as Select } from '@/components/ranking-filters';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import LoadMore from '@/components/load-more';
 
@@ -18,9 +18,6 @@ function load(program:Program,season:string){
   return requests.get(key)!;
 }
 const regionOf=(team:Team)=>team.eventRegion??String(team.region??'Unassigned').split(',')[0].trim();
-function Select({label,value,options,onChange,allLabel}: {label:string;value:string;options:string[];onChange:(value:string)=>void;allLabel?:string}){
-  return <NativeSelect aria-label={label} value={value} onChange={event=>onChange(event.target.value)} className="w-full [&_select]:h-10 [&_select]:rounded-none [&_select]:border-0 [&_select]:border-b [&_select]:border-white/15 [&_select]:bg-transparent">{options.map(option=><NativeSelectOption key={option} value={option}>{option==='All'?allLabel??'All':option}</NativeSelectOption>)}</NativeSelect>;
-}
 export default function SkillsRankings({program,openTeam,savedState,setSavedState}: {program:Program;openTeam:(team:any)=>void;savedState:any;setSavedState:(state:any)=>void}){
   const config=PROGRAMS[program];
   const seasons=Object.entries(config.seasons).filter(([id])=>config.skillsSeasons.some(value=>value===id)).sort(([a],[b])=>Number(b)-Number(a));
@@ -54,7 +51,7 @@ export default function SkillsRankings({program,openTeam,savedState,setSavedStat
       <Select label="Skills grade" allLabel="All school levels" value={grade} options={['All',...config.grades]} onChange={setGrade} />
       <Select label="Skills country" allLabel="All countries" value={country} options={countries} onChange={value=>{setCountry(value);setRegion('All')}} />
       <Select label="Skills event region" allLabel="All event regions" value={region} options={regions} onChange={setRegion} />
-      <label className="relative"><Search className="absolute left-0 top-3 h-4 w-4 text-white/45" aria-hidden="true" /><input aria-label="Search skills teams" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Search team number or name" className="h-10 w-full border-0 border-b border-white/15 bg-transparent pl-6 text-sm outline-none focus:border-white/40" /></label>
+      <FilterInput icon={<Search />} label="Search skills teams" value={search} onChange={setSearch} placeholder="Search team number or name" />
     </div>
     <p role="status" className="mt-5 text-xs text-white/55">{current?.rows?`${filtered.length.toLocaleString()} teams listed · Ranked by combined skills score`:'Loading world skills standings…'}</p>
     {current?.error&&<div role="alert" className="mt-5 border border-rose-400/30 bg-rose-400/5 p-5"><p className="text-sm text-rose-200">{current.error}</p><button onClick={()=>setRetry(value=>value+1)} className="mt-3 border border-white/20 px-4 py-2 text-sm font-bold">Retry</button></div>}

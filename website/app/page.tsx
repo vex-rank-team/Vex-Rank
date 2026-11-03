@@ -21,7 +21,7 @@ import { vexCountries, vexEventRegions, eventRegionsForCountry } from '@/lib/eve
 import { createContext, Fragment, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { parseAgenda } from '@/lib/agenda';
 import { ArrowLeft, ArrowRight, ArrowUp, ArrowUpRight, BarChart3, CalendarDays, ChevronRight, Filter, Gauge, Globe2, MapPin, Menu, Search, Users, X } from 'lucide-react';
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
+import { FilterInput, FilterSelect } from '@/components/ranking-filters';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
@@ -1300,8 +1300,6 @@ function StatFeature({ icon, title, copy }: {icon:React.ReactNode;title:string;c
     page does not jump when the real rows arrive. */
 function SkeletonRows({ columns, rows=8 }: {columns:number;rows?:number}) { return <>{Array.from({length:rows},(_,row)=><TableRow key={`skeleton-${row}`} aria-hidden="true" className="border-white/[.07] hover:bg-transparent">{Array.from({length:columns},(_,column)=><TableCell key={column} className={column===0||column===columns-1?'px-5':''}><div className={`h-4 animate-pulse rounded bg-white/[.08] ${column===1?'w-40':column===columns-1?'ml-auto w-14':'w-16'}`} style={{animationDelay:`${row*60}ms`}} /></TableCell>)}</TableRow>)}</>; }
 function Empty({ text }: {text:string}) { return <p className="border-t border-white/[.08] px-1 py-10 text-sm italic leading-relaxed text-white/50">{text}</p>; }
-function FilterInput({ value, onChange, placeholder, icon }: {value:string;onChange:(value:string)=>void;placeholder:string;icon?:React.ReactNode}) { return <label className="relative">{icon && <span className="absolute left-0 top-2.5 text-white/45 [&_svg]:h-4 [&_svg]:w-4">{icon}</span>}<input value={value} onChange={event=>onChange(event.target.value)} placeholder={placeholder} aria-label={placeholder} className={`h-9 w-full border-0 border-b border-white/15 bg-transparent pr-3 text-sm outline-none placeholder:text-white/45 focus:border-white/40 ${icon ? 'pl-6' : 'pl-0'}`} /></label>; }
-function FilterSelect({ label, value, options, onChange, className='', allLabel, optionLabels={} }: {label:string;value:string;options:string[];onChange:(value:string)=>void;className?:string;allLabel?:string;optionLabels?:Record<string,string>}) { return <NativeSelect value={value} onChange={event=>onChange(event.target.value)} className={`w-full [&_select]:h-9 [&_select]:rounded-none [&_select]:border-0 [&_select]:border-b [&_select]:border-white/15 [&_select]:bg-transparent dark:[&_select]:bg-transparent dark:[&_select]:hover:bg-white/[.03] [&_select]:px-0 [&_select]:text-sm ${className}`} aria-label={label}>{options.map(option=><NativeSelectOption key={option} value={option}>{optionLabels[option]??(option === 'All' ? (allLabel ?? `All ${label.toLowerCase()}s`) : option)}</NativeSelectOption>)}</NativeSelect>; }
 
 function seasonYearLabel(name:string='') { const match=name.match(/(20\d{2})\s*[-–]\s*(20\d{2}|\d{2})/);return match?`${match[1]}–${match[2].slice(-2)}`:'—'; }
 function LoadError({message,retry}:{message:string;retry:()=>void}) {return <div role="alert" className="my-4 border border-rose-400/30 bg-rose-400/5 p-5"><p className="text-sm text-rose-200">{message}</p><button onClick={retry} className="mt-3 border border-white/20 px-4 py-2 text-sm font-bold hover:bg-white hover:text-black">Retry</button></div>;}
